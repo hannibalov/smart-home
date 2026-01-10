@@ -1,0 +1,10 @@
+{
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.tsx": "$(capture).test.tsx, $(capture).test.ts, $(capture).spec.tsx, $(capture).spec.ts",
+    "*.ts": "$(capture).test.ts, $(capture).spec.ts",
+    "*.hooks.ts": "$(capture).test.ts, $(capture).spec.ts",
+    "package.json": "package-lock.json, yarn.lock, next.config.mjs, tsconfig.json, vitest.config.ts, .eslintrc.json, .gitignore, postcss.config.mjs, tailwind.config.ts"
+  }
+}
