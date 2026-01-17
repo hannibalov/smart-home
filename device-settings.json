@@ -1,6 +1,10 @@
 {
   "816317bee3a2b892566ab3c7b4d95ec7": {
-    "targetChar": "a040",
-    "protocol": "generic"
+    "saved": true,
+    "customName": "Bedroom"
+  },
+  "194876bafc6170b77663cc5685a70373": {
+    "saved": true,
+    "customName": "Living room"
   }
 }

@@ -2,9 +2,18 @@
 import fs from 'fs';
 import path from 'path';
 import { state, emitEvent } from './state';
+import type { LightState } from '@/types';
+
+interface DeviceSetting {
+    targetChar?: string;
+    profileId?: string;
+    saved?: boolean;
+    customName?: string;
+    lastState?: LightState;
+}
 
 const SETTINGS_FILE = path.join(process.cwd(), 'device-settings.json');
-const deviceSettings = new Map<string, { targetChar?: string; profileId?: string; saved?: boolean; customName?: string }>();
+const deviceSettings = new Map<string, DeviceSetting>();
 
 /**
  * Persist settings to file
@@ -27,7 +36,7 @@ export function loadSettings() {
             const content = fs.readFileSync(SETTINGS_FILE, 'utf-8');
             const obj = JSON.parse(content);
             Object.entries(obj).forEach(([id, settings]) => {
-                deviceSettings.set(id, settings as { targetChar?: string; profileId?: string; saved?: boolean; customName?: string });
+                deviceSettings.set(id, settings as DeviceSetting);
             });
             console.log(`[BLE] Loaded settings for ${deviceSettings.size} devices`);
         }
@@ -56,7 +65,7 @@ export function toggleSaveDevice(deviceId: string) {
     return settings.saved;
 }
 
-export function setDeviceSettings(deviceId: string, settings: { targetChar?: string; profileId?: string; saved?: boolean; customName?: string }) {
+export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
     const existing = deviceSettings.get(deviceId) || {};
     const updated = { ...existing, ...settings };
     deviceSettings.set(deviceId, updated);
@@ -73,8 +82,23 @@ export function setDeviceSettings(deviceId: string, settings: { targetChar?: str
             // Also update the display name if currently connected/viewed
             device.name = settings.customName;
         }
+        if (settings.lastState !== undefined) {
+            device.state = { ...device.state, ...settings.lastState } as LightState;
+        }
         emitEvent('device_updated', device);
     }
+}
+
+/**
+ * Update the last known state for a device and persist it
+ */
+export function updateDeviceLastState(deviceId: string, partialState: Partial<LightState>) {
+    const existing = deviceSettings.get(deviceId) || {};
+    const lastState = existing.lastState || { power: false, brightness: 100, colorTemperature: 50 };
+
+    const updatedState = { ...lastState, ...partialState };
+
+    setDeviceSettings(deviceId, { lastState: updatedState });
 }
 
 export function getDeviceSettings(deviceId: string) {

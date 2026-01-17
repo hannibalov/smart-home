@@ -1,0 +1,91 @@
+{
+    "categories": [
+        {
+            "id": "lights",
+            "name": "Lights",
+            "icon": "lightbulb",
+            "description": "Smart bulbs, strips, and fixtures"
+        },
+        {
+            "id": "climate",
+            "name": "Climate",
+            "icon": "thermometer",
+            "description": "AC units, thermostats, fans"
+        },
+        {
+            "id": "appliances",
+            "name": "Appliances",
+            "icon": "home",
+            "description": "Ovens, fridges, washing machines"
+        },
+        {
+            "id": "security",
+            "name": "Security",
+            "icon": "lock",
+            "description": "Cameras, locks, sensors"
+        }
+    ],
+    "connectionTypes": [
+        {
+            "id": "bluetooth",
+            "name": "Bluetooth",
+            "description": "Direct local connection",
+            "icon": "bluetooth"
+        },
+        {
+            "id": "wifi",
+            "name": "Wi-Fi",
+            "description": "Network connection",
+            "icon": "wifi"
+        },
+        {
+            "id": "rf",
+            "name": "RF 433MHz",
+            "description": "Radio frequency control",
+            "icon": "radio"
+        }
+    ],
+    "presets": [
+        {
+            "id": "ilink-rgb",
+            "name": "iLink RGB Light",
+            "category": "lights",
+            "connections": [
+                "bluetooth"
+            ],
+            "protocol": "ilink",
+            "description": "Standard iLink Bluetooth RGB bulb"
+        },
+        {
+            "id": "triones-led",
+            "name": "Triones LED Strip",
+            "category": "lights",
+            "connections": [
+                "bluetooth"
+            ],
+            "protocol": "triones",
+            "description": "Generic Triones BLE controller"
+        },
+        {
+            "id": "generic-ac",
+            "name": "Generic AC Unit",
+            "category": "climate",
+            "connections": [
+                "wifi",
+                "rf"
+            ],
+            "protocol": "tuya",
+            "description": "Standard Tuya-compatible AC"
+        },
+        {
+            "id": "smart-fridge",
+            "name": "Smart Fridge 3000",
+            "category": "appliances",
+            "connections": [
+                "wifi"
+            ],
+            "protocol": "custom",
+            "description": "Temperature monitoring and ice control"
+        }
+    ]
+}

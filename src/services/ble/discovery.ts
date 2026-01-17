@@ -61,6 +61,7 @@ export function handleDiscover(peripheral: Peripheral): void {
             profileId: settings.profileId,
             targetChar: settings.targetChar,
             saved: !!settings.saved,
+            state: settings.lastState,
             characteristics: [],
         });
 

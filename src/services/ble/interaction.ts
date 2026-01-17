@@ -1,7 +1,7 @@
 
 import type { CommandLogEntry, LightState, ControlCommand, BLECharacteristic } from '@/types';
 import { state, emitEvent, generateId } from './state';
-import { getDeviceSettings } from './settings';
+import { getDeviceSettings, updateDeviceLastState } from './settings';
 import { PROFILES } from '@/profiles';
 import { encodeILinkCommand, encodeTrionesCommand, encodeMagicHomeCommand } from './encoding';
 
@@ -88,6 +88,9 @@ export async function getLightState(deviceId: string): Promise<Partial<LightStat
         if (profile.encoding === '55aa') {
             const parsed = parseILinkStatus(hex);
             console.log(`[STATE] Parsed state (55aa):`, parsed);
+            if (Object.keys(parsed).length > 0) {
+                updateDeviceLastState(deviceId, parsed);
+            }
             return parsed;
         }
 
@@ -182,7 +185,19 @@ export async function sendLightCommand(
         targetChar = writableChar?.uuid || 'ffe1';
     }
 
-    return writeCharacteristic(deviceId, targetChar, hexCommand);
+    const success = await writeCharacteristic(deviceId, targetChar, hexCommand);
+    if (success) {
+        const stateUpdate: Partial<LightState> = {};
+        if (command.type === 'power') stateUpdate.power = command.value as boolean;
+        else if (command.type === 'brightness') stateUpdate.brightness = command.value as number;
+        else if (command.type === 'color') stateUpdate.color = command.value as { r: number; g: number; b: number };
+        else if (command.type === 'colorTemperature') stateUpdate.colorTemperature = command.value as number;
+
+        if (Object.keys(stateUpdate).length > 0) {
+            updateDeviceLastState(deviceId, stateUpdate);
+        }
+    }
+    return success;
 }
 
 /**

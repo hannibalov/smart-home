@@ -23,20 +23,22 @@ export default function Home() {
     refreshDevices,
   } = useDeviceDashboard();
 
+  const savedDevices = devices.filter(d => d.saved);
+
   return (
     <div className="min-h-screen">
       <Header mockMode={false} />
 
       <main className="container mx-auto px-4 py-8">
         <DashboardHeader
-          deviceCount={devices.length}
+          deviceCount={savedDevices.length}
           scanning={scanning}
-          onScan={startScan}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <DeviceList
-            devices={devices}
+            title="My Devices"
+            devices={savedDevices}
             profiles={profiles}
             onConnect={connectDevice}
             onDisconnect={disconnectDevice}
@@ -44,6 +46,7 @@ export default function Home() {
             onProfileChange={refreshDevices}
             onToggleSave={toggleSaveDevice}
             onRename={renameDevice}
+            emptyMessage="No saved devices. Click 'Add Device' to start."
           />
 
           <ControlPanel
