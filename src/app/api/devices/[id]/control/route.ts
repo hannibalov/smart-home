@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendLightCommand, writeCharacteristic, getCommandLog, clearCommandLog } from '@/services/ble';
-import { sendACCommand, getWiFiDevices } from '@/services/ac';
+import { getWiFiDevices } from '@/services/ac';
+import { updateDeviceState } from '@/services/hub';
 import { shouldProxy, proxyToRemote } from '@/services/remoteProxy';
 import type { ControlCommand, ACControlCommand } from '@/types';
 
@@ -43,21 +44,10 @@ export async function POST(request: Request, { params }: RouteParams) {
             return NextResponse.json({ success, raw: true });
         }
 
-        const command: ControlCommand = {
-            type: body.type,
-            value: body.value,
-        };
+        const newState = { [body.type]: body.value };
+        await updateDeviceState(id, newState, 'ui');
 
-        const wifiDevices = await getWiFiDevices();
-        const isWifi = wifiDevices.some(d => d.id === id);
-
-        if (isWifi) {
-            const success = await sendACCommand(id, command as ACControlCommand);
-            return NextResponse.json({ success, deviceType: 'wifi', command });
-        }
-
-        const success = await sendLightCommand(id, command);
-        return NextResponse.json({ success, deviceType: 'ble', command });
+        return NextResponse.json({ success: true, deviceId: id, newState });
     } catch (error) {
         console.error('[API] Error sending command:', error);
         return NextResponse.json(

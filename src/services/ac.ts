@@ -1,5 +1,6 @@
 import { ACState, ACControlCommand, WiFiDevice } from '@/types';
-import { updateDeviceLastState, getDeviceSettings } from './ble/settings';
+import { getDeviceSettings } from './ble/settings';
+import { updateDeviceState } from './hub';
 
 // In-memory state for WiFi devices
 const wifiDevices = new Map<string, WiFiDevice>();
@@ -62,29 +63,15 @@ export async function sendACCommand(
 
     console.log(`[AC] Sending command to ${deviceId}:`, command);
 
-    // Update local state
-    switch (command.type) {
-        case 'power':
-            state.power = command.value as boolean;
-            break;
-        case 'targetTemp':
-            state.targetTemp = command.value as number;
-            break;
-        case 'mode':
-            state.mode = command.value as ACState['mode'];
-            break;
-        case 'fanSpeed':
-            state.fanSpeed = command.value as ACState['fanSpeed'];
-            break;
-        case 'swing':
-            state.swing = command.value as boolean;
-            break;
+    const newState = { [command.type]: command.value };
+    await updateDeviceState(deviceId, newState, 'ui');
+
+    // Update local state is now handled by Hub (via updateDeviceState)
+    // but ac.ts keeps its own map for quick access/non-BLE devices
+    const currentACState = acStates.get(deviceId);
+    if (currentACState) {
+        acStates.set(deviceId, { ...currentACState, ...newState });
     }
-
-    acStates.set(deviceId, { ...state });
-
-    // Persist AC state
-    updateDeviceLastState(deviceId, state);
 
     // TODO: Implement real Tuya/WiFi communication here
     // For now, we simulate success

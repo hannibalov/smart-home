@@ -5,9 +5,9 @@
     "lastState": {
       "power": true,
       "color": {
-        "r": 127,
-        "g": 0,
-        "b": 255
+        "r": 255,
+        "g": 255,
+        "b": 0
       }
     }
   },
@@ -19,11 +19,14 @@
       "color": {
         "r": 255,
         "g": 255,
-        "b": 0
-      }
+        "b": 255
+      },
+      "brightness": 100
     }
   },
-  "192.168.1.50": {
+  "192.168.1.13": {
+    "saved": true,
+    "customName": "Pro Klima AC (Living Room)",
     "lastState": {
       "power": true,
       "targetTemp": 25,

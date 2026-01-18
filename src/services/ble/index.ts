@@ -1,6 +1,6 @@
 
 import { state, emitEvent } from './state';
-import { loadSettings, getDeviceSettingsMap } from './settings';
+import { loadSettings, getDeviceSettingsMap, resetSettingsForTesting } from './settings';
 import { handleDiscover, startScan } from './discovery';
 import { connectDevice } from './connection';
 
@@ -29,21 +29,26 @@ export function clearCommandLog(): void {
 function populateSavedDevices() {
     const settingsMap = getDeviceSettingsMap();
     settingsMap.forEach((settings, id) => {
-        if (settings.saved && !state.devices.has(id)) {
-            state.devices.set(id, {
-                id,
-                name: settings.customName || 'Saved Device',
-                connected: false,
-                rssi: -100,
-                services: [],
-                lastSeen: Date.now(),
-                saved: true,
-                customName: settings.customName,
-                profileId: settings.profileId,
-                targetChar: settings.targetChar,
-                state: settings.lastState,
-                characteristics: [],
-            });
+        if (!state.devices.has(id)) {
+            // Check if it's a WiFi device ID (IP format)
+            const isWifi = id.includes('.') || id.startsWith('192.') || id.startsWith('10.');
+
+            if (settings.saved || isWifi) {
+                state.devices.set(id, {
+                    id,
+                    name: settings.customName || (isWifi ? 'WiFi AC' : 'Saved Device'),
+                    connected: false,
+                    rssi: -100,
+                    services: [],
+                    lastSeen: Date.now(),
+                    saved: !!settings.saved,
+                    customName: settings.customName,
+                    profileId: settings.profileId,
+                    targetChar: settings.targetChar,
+                    state: settings.lastState,
+                    characteristics: [],
+                });
+            }
         }
     });
 }
@@ -56,16 +61,16 @@ let reconnectInterval: NodeJS.Timeout | null = null;
 export function startAutoReconnectLoop() {
     if (reconnectInterval) return;
 
-    console.log('[BLE] Starting auto-reconnect loop (5 min interval)');
+    console.log('[BLE] Starting auto-reconnect loop (30s interval)');
 
-    // Initial attempt after a short delay to allow everything to settle
+    // Initial attempt after a short delay
     setTimeout(() => {
         attemptReconnects();
-    }, 5000);
+    }, 2000);
 
     reconnectInterval = setInterval(() => {
         attemptReconnects();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 30 * 1000); // 30 seconds
 }
 
 async function attemptReconnects() {
@@ -96,6 +101,7 @@ export function resetStateForTesting() {
     if (state.scanTimeout) clearTimeout(state.scanTimeout);
     state.scanTimeout = null;
     state.bleEvents.removeAllListeners();
+    resetSettingsForTesting();
 }
 
 export function getStateForTesting() {

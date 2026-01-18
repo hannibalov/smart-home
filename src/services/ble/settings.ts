@@ -31,6 +31,11 @@ function setSettingsLoaded(val: boolean) {
     globalForSettings.settingsLoaded = val;
 }
 
+export function resetSettingsForTesting() {
+    deviceSettings.clear();
+    setSettingsLoaded(false);
+}
+
 function ensureLoad() {
     if (!settingsLoaded) {
         loadSettings();
@@ -40,11 +45,12 @@ function ensureLoad() {
 /**
  * Persist settings to file
  */
-function saveSettings() {
+function saveSettings(reason?: string) {
     try {
         const obj = Object.fromEntries(deviceSettings);
         const data = JSON.stringify(obj, null, 2);
         fs.writeFileSync(SETTINGS_FILE, data);
+        console.log(`[SETTINGS] Saved ${reason ? `for ${reason} ` : ''}to ${SETTINGS_FILE}`);
     } catch (e) {
         console.error('[BLE] Failed to save settings:', e);
     }
@@ -80,7 +86,7 @@ export function toggleSaveDevice(deviceId: string) {
     const settings = deviceSettings.get(deviceId) || {};
     settings.saved = !settings.saved;
     deviceSettings.set(deviceId, settings);
-    saveSettings();
+    saveSettings(deviceId);
 
     // Also update the device object in memory if it exists
     const device = state.devices.get(deviceId);
@@ -95,9 +101,22 @@ export function toggleSaveDevice(deviceId: string) {
 export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
     ensureLoad();
     const existing = deviceSettings.get(deviceId) || {};
+
+    // Check for actual changes to prevent unnecessary writes
+    const keys = Object.keys(settings) as (keyof DeviceSetting)[];
+    const hasChanged = keys.some(key => {
+        const isChanged = JSON.stringify(existing[key]) !== JSON.stringify(settings[key]);
+        return isChanged;
+    });
+
+    if (!hasChanged) {
+        console.log(`[SETTINGS] Change detection: No changes for ${deviceId}, skipping disk write.`);
+        return;
+    }
+
     const updated = { ...existing, ...settings };
     deviceSettings.set(deviceId, updated);
-    saveSettings();
+    saveSettings(deviceId);
 
     // Also update the device object in memory if it exists
     const device = state.devices.get(deviceId);

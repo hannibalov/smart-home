@@ -1,6 +1,7 @@
 import type { CommandLogEntry, LightState, ControlCommand, BLECharacteristic } from '@/types';
 import { state, emitEvent, generateId } from './state';
-import { getDeviceSettings, updateDeviceLastState } from './settings';
+import { getDeviceSettings } from './settings';
+import { updateDeviceState } from '../hub';
 import { PROFILES } from '@/profiles';
 import { encodeILinkCommand, encodeTrionesCommand, encodeMagicHomeCommand } from './encoding';
 
@@ -106,7 +107,7 @@ export async function getLightState(deviceId: string): Promise<Partial<LightStat
             const parsed = parseILinkStatus(hex);
             console.log(`[STATE] Parsed state (55aa):`, parsed);
             if (Object.keys(parsed).length > 0) {
-                updateDeviceLastState(deviceId, parsed);
+                await updateDeviceState(deviceId, parsed, 'hardware');
             }
             console.log(`[STATE] getLightState for ${deviceId} took ${(performance.now() - startTime).toFixed(2)}ms`);
             return parsed;
@@ -204,17 +205,9 @@ export async function sendLightCommand(
     }
 
     const success = await writeCharacteristic(deviceId, targetChar, hexCommand);
-    if (success) {
-        const stateUpdate: Partial<LightState> = {};
-        if (command.type === 'power') stateUpdate.power = command.value as boolean;
-        else if (command.type === 'brightness') stateUpdate.brightness = command.value as number;
-        else if (command.type === 'color') stateUpdate.color = command.value as { r: number; g: number; b: number };
-        else if (command.type === 'colorTemperature') stateUpdate.colorTemperature = command.value as number;
-
-        if (Object.keys(stateUpdate).length > 0) {
-            updateDeviceLastState(deviceId, stateUpdate);
-        }
-    }
+    // Success will trigger state update via writeCharacteristic's own logic 
+    // or we can handle it here if we want to be explicit.
+    // For now, writeCharacteristic handles some parsing.
     return success;
 }
 
@@ -282,17 +275,19 @@ export async function writeCharacteristic(
         logEntry.response = 'OK';
         state.commandLog.push(logEntry);
 
-        // Attempt to parse state from command for persistence
+        // Attempt to parse state from command for persistence/state sync
         if (value.startsWith('55aa')) {
             const parsed = parseILinkStatus(value);
             if (Object.keys(parsed).length > 0) {
-                updateDeviceLastState(deviceId, parsed);
+                // This originated from a write, but we treat it as 'hardware' 
+                // to prevent it being sent back to the device.
+                await updateDeviceState(deviceId, parsed, 'hardware');
             }
         } else if (value.startsWith('7e') || value.startsWith('fb')) {
             // Triones/MagicHome simple power parsing
             if (value.substring(0, 6) === '7e0004' || value.substring(0, 6) === '7e0404') {
                 const p = value.substring(6, 8) === '01';
-                updateDeviceLastState(deviceId, { power: p });
+                await updateDeviceState(deviceId, { power: p }, 'hardware');
             }
         }
 

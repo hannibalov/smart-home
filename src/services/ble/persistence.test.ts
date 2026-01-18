@@ -8,6 +8,7 @@ import {
     sendLightCommand,
     getStateForTesting
 } from '../ble';
+import { updateDeviceState } from '../hub';
 import { EventEmitter } from 'events';
 
 // FS Mock
@@ -91,10 +92,25 @@ describe('BLE State Persistence', () => {
         // Mock writeCharacteristic to succeed (mock mode handles this)
         state.isMockMode = true;
 
-        await sendLightCommand(deviceId, { type: 'brightness', value: 42 });
+        // In new architecture, we update state through the hub
+        await updateDeviceState(deviceId, { brightness: 42 }, 'ui');
 
         const settings = getDeviceSettings(deviceId);
         expect(settings.lastState?.brightness).toBe(42);
         expect(fs.writeFileSync).toHaveBeenCalled();
+    });
+
+    it('should NOT save if the state hasn\'t changed', async () => {
+        const deviceId = 'unique-test-device';
+        const state = { power: true, brightness: 88 };
+
+        // First save
+        updateDeviceLastState(deviceId, state);
+        expect(fs.writeFileSync).toHaveBeenCalled();
+
+        // Second save with same data
+        (fs.writeFileSync as any).mockClear();
+        updateDeviceLastState(deviceId, state);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 });
