@@ -37,7 +37,7 @@ function populateSavedDevices() {
                 state.devices.set(id, {
                     id,
                     name: settings.customName || (isWifi ? 'WiFi AC' : 'Saved Device'),
-                    connected: false,
+                    connected: isWifi ? true : false, // WiFi devices are generally available via IP
                     rssi: -100,
                     services: [],
                     lastSeen: Date.now(),
@@ -79,11 +79,25 @@ async function attemptReconnects() {
 
     if (savedDisconnectedDevices.length === 0) return;
 
-    console.log(`[BLE] Attempting to reconnect to ${savedDisconnectedDevices.length} saved devices...`);
+    // 1. Try to connect directly to devices we already have peripherals for
+    const stillNeeded: string[] = [];
+    for (const device of savedDisconnectedDevices) {
+        if (state.peripherals.has(device.id)) {
+            console.log(`[BLE] Reconnecting to ${device.name} (peripheral known)...`);
+            connectDevice(device.id).catch(() => { });
+        } else {
+            stillNeeded.push(device.id);
+        }
+    }
 
-    // Start a short scan to find them if they are nearby
+    if (stillNeeded.length === 0) return;
+
+    console.log(`[BLE] Attempting to find ${stillNeeded.length} devices via brief scan...`);
+
+    // 2. Only scan if we have saved devices that aren't in our peripheral map
     try {
-        await startScan(10000);
+        // Start a short scan. handleDiscover will handle the connection.
+        await startScan(15000);
     } catch (e) {
         console.error('[BLE] Auto-reconnect scan failed:', e);
     }

@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { state, emitEvent } from './state';
-import type { LightState } from '@/types';
+import type { LightState, DeviceType, DeviceConnectivity, DeviceProtocol } from '@/types';
 
 // Try to find the project root reliably
 const PROJECT_ROOT = process.cwd();
@@ -13,6 +13,9 @@ interface DeviceSetting {
     profileId?: string;
     saved?: boolean;
     customName?: string;
+    type?: DeviceType;
+    connectivity?: DeviceConnectivity;
+    protocol?: DeviceProtocol;
     lastState?: LightState | any; // Any for AC compatibility
 }
 
@@ -129,6 +132,9 @@ export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
             // Also update the display name if currently connected/viewed
             device.name = settings.customName;
         }
+        if (settings.type !== undefined) device.type = settings.type;
+        if (settings.connectivity !== undefined) device.connectivity = settings.connectivity;
+        if (settings.protocol !== undefined) device.protocol = settings.protocol;
         if (settings.lastState !== undefined) {
             device.state = { ...device.state, ...settings.lastState } as LightState;
         }

@@ -1,5 +1,5 @@
 import { ACState, ACControlCommand, WiFiDevice } from '@/types';
-import { getDeviceSettings } from './ble/settings';
+import { getDeviceSettings, getDeviceSettingsMap } from './ble/settings';
 import { updateDeviceState } from './hub';
 
 // In-memory state for WiFi devices
@@ -7,29 +7,59 @@ const wifiDevices = new Map<string, WiFiDevice>();
 const acStates = new Map<string, ACState>();
 
 /**
- * Initialize mock AC if none exists
+ * Initialize WiFi devices from settings
  */
-function ensureMockAC() {
+function ensureDevices() {
+    if (wifiDevices.size > 0) return;
+
+    const settingsMap = getDeviceSettingsMap();
+    settingsMap.forEach((settings, id) => {
+        const isWifi = id.includes('.') || id.startsWith('192.') || id.startsWith('10.');
+        if (isWifi) {
+            const device: WiFiDevice = {
+                id,
+                name: settings.customName || 'WiFi AC',
+                ip: id,
+                type: (settings.type as any) || 'ac',
+                connectivity: (settings.connectivity as any) || 'wifi',
+                protocol: settings.protocol || 'tuya',
+                connected: true,
+                lastSeen: Date.now(),
+            };
+            wifiDevices.set(id, device);
+
+            const lastState = settings.lastState as ACState;
+            acStates.set(id, {
+                power: lastState?.power ?? false,
+                targetTemp: lastState?.targetTemp ?? 22,
+                currentTemp: lastState?.currentTemp ?? 24,
+                mode: lastState?.mode ?? 'cool',
+                fanSpeed: lastState?.fanSpeed ?? 'auto',
+                swing: lastState?.swing ?? false,
+            });
+        }
+    });
+
+    // Fallback mock if nothing saved
     if (wifiDevices.size === 0) {
-        const mockAC: WiFiDevice = {
-            id: '192.168.1.50',
-            name: 'Pro Klima AC (Living Room)',
-            ip: '192.168.1.50',
+        const mockId = '192.168.1.50';
+        wifiDevices.set(mockId, {
+            id: mockId,
+            name: 'Mock AC',
+            ip: mockId,
             type: 'ac',
+            connectivity: 'wifi',
+            protocol: 'tuya',
             connected: true,
             lastSeen: Date.now(),
-        };
-        const settings = getDeviceSettings(mockAC.id);
-        const lastState = settings.lastState as ACState;
-
-        wifiDevices.set(mockAC.id, mockAC);
-        acStates.set(mockAC.id, {
-            power: lastState?.power ?? false,
-            targetTemp: lastState?.targetTemp ?? 22,
-            currentTemp: lastState?.currentTemp ?? 24,
-            mode: lastState?.mode ?? 'cool',
-            fanSpeed: lastState?.fanSpeed ?? 'auto',
-            swing: lastState?.swing ?? false,
+        });
+        acStates.set(mockId, {
+            power: false,
+            targetTemp: 22,
+            currentTemp: 24,
+            mode: 'cool',
+            fanSpeed: 'auto',
+            swing: false,
         });
     }
 }
@@ -38,7 +68,7 @@ function ensureMockAC() {
  * Get all WiFi devices
  */
 export async function getWiFiDevices(): Promise<WiFiDevice[]> {
-    ensureMockAC();
+    ensureDevices();
     return Array.from(wifiDevices.values());
 }
 
@@ -46,7 +76,7 @@ export async function getWiFiDevices(): Promise<WiFiDevice[]> {
  * Get AC state
  */
 export async function getACState(deviceId: string): Promise<ACState | undefined> {
-    ensureMockAC();
+    ensureDevices();
     return acStates.get(deviceId);
 }
 
@@ -57,7 +87,7 @@ export async function sendACCommand(
     deviceId: string,
     command: ACControlCommand
 ): Promise<boolean> {
-    ensureMockAC();
+    ensureDevices();
     const state = acStates.get(deviceId);
     if (!state) return false;
 

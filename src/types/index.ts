@@ -1,4 +1,6 @@
-// BLE Device Types
+export type DeviceType = 'light' | 'ac' | 'appliance' | 'security' | 'generic';
+export type DeviceConnectivity = 'bluetooth' | 'wifi' | 'rf' | 'zigbee' | 'zwave' | 'matter';
+export type DeviceProtocol = 'ilink' | 'triones' | 'tuya' | 'magic-home' | 'custom' | 'raw';
 
 export interface BLEDevice {
   id: string;
@@ -9,13 +11,18 @@ export interface BLEDevice {
   lastSeen: number;
   saved: boolean;
   customName?: string;
+  type?: DeviceType;
+  connectivity?: DeviceConnectivity;
+  protocol?: DeviceProtocol;
 }
 
 export interface WiFiDevice {
   id: string; // IP or IP-based ID
   name: string;
   ip: string;
-  type: 'ac' | 'generic';
+  type: DeviceType;
+  connectivity: DeviceConnectivity;
+  protocol: DeviceProtocol;
   connected: boolean;
   lastSeen: number;
 }

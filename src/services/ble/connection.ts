@@ -123,6 +123,7 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
         });
 
         emitEvent('device_connected', device);
+        emitEvent('device_updated', device); // Notify UI that connection status changed
 
         console.log(`[CONNECTION] Device connected, attempting to read initial state...`);
         try {

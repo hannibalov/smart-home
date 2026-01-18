@@ -71,10 +71,20 @@ export function handleDiscover(peripheral: Peripheral): void {
     // Auto-connect to saved devices when discovered
     const settings = getDeviceSettings(device.id);
     if (settings.saved && !peripheral.state.includes('connected')) {
-        console.log(`[BLE] Auto-connecting to discovered saved device: ${device.id}`);
+        console.log(`[BLE] Discovered saved device ${device.name}(${device.id}), connecting...`);
         connectDevice(device.id).catch(err => {
             console.error(`[BLE] Auto-connect failed for ${device.id}:`, err);
         });
+
+        // Optimization: if we were Scanning specifically for saved devices, 
+        // we might want to check if all are found and stop early.
+        // But for simplicity, we just emit the event and let the scan continue 
+        // until timeout or until we find all.
+    }
+
+    // Always emit an update if it was an existing device (to refresh RSSI/lastSeen in UI)
+    if (existing) {
+        emitEvent('device_updated', state.devices.get(device.id));
     }
 }
 
@@ -82,11 +92,17 @@ export function handleDiscover(peripheral: Peripheral): void {
  * Get all discovered devices
  */
 export function getDevices(): BLEDevice[] {
-    return Array.from(state.devices.values()).map((device) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { characteristics, ...rest } = device;
-        return rest;
-    });
+    return Array.from(state.devices.values())
+        .filter(device => {
+            // Filter out WiFi devices from the BLE list to avoid duplication in API
+            const isWifi = device.id.includes('.') || device.id.startsWith('192.') || device.id.startsWith('10.');
+            return !isWifi;
+        })
+        .map((device) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { characteristics, ...rest } = device;
+            return rest;
+        });
 }
 
 /**
