@@ -1,10 +1,36 @@
 {
   "816317bee3a2b892566ab3c7b4d95ec7": {
     "saved": true,
-    "customName": "Bedroom"
+    "customName": "Bedroom",
+    "lastState": {
+      "power": true,
+      "color": {
+        "r": 127,
+        "g": 0,
+        "b": 255
+      }
+    }
   },
   "194876bafc6170b77663cc5685a70373": {
     "saved": true,
-    "customName": "Living room"
+    "customName": "Living room",
+    "lastState": {
+      "power": true,
+      "color": {
+        "r": 255,
+        "g": 255,
+        "b": 0
+      }
+    }
+  },
+  "192.168.1.50": {
+    "lastState": {
+      "power": true,
+      "targetTemp": 25,
+      "currentTemp": 24,
+      "mode": "cool",
+      "fanSpeed": "auto",
+      "swing": false
+    }
   }
 }

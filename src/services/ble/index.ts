@@ -1,7 +1,8 @@
 
-import { state } from './state';
-import { loadSettings } from './settings';
-import { handleDiscover } from './discovery';
+import { state, emitEvent } from './state';
+import { loadSettings, getDeviceSettingsMap } from './settings';
+import { handleDiscover, startScan } from './discovery';
+import { connectDevice } from './connection';
 
 // Re-export everything from modules
 export * from './types';
@@ -20,6 +21,67 @@ export function getCommandLog(limit: number = 50) {
 
 export function clearCommandLog(): void {
     state.commandLog.length = 0;
+}
+
+/**
+ * Pre-populate the device map with saved devices from settings
+ */
+function populateSavedDevices() {
+    const settingsMap = getDeviceSettingsMap();
+    settingsMap.forEach((settings, id) => {
+        if (settings.saved && !state.devices.has(id)) {
+            state.devices.set(id, {
+                id,
+                name: settings.customName || 'Saved Device',
+                connected: false,
+                rssi: -100,
+                services: [],
+                lastSeen: Date.now(),
+                saved: true,
+                customName: settings.customName,
+                profileId: settings.profileId,
+                targetChar: settings.targetChar,
+                state: settings.lastState,
+                characteristics: [],
+            });
+        }
+    });
+}
+
+/**
+ * Start a background loop to reconnect to saved devices
+ */
+let reconnectInterval: NodeJS.Timeout | null = null;
+
+export function startAutoReconnectLoop() {
+    if (reconnectInterval) return;
+
+    console.log('[BLE] Starting auto-reconnect loop (5 min interval)');
+
+    // Initial attempt after a short delay to allow everything to settle
+    setTimeout(() => {
+        attemptReconnects();
+    }, 5000);
+
+    reconnectInterval = setInterval(() => {
+        attemptReconnects();
+    }, 5 * 60 * 1000); // 5 minutes
+}
+
+async function attemptReconnects() {
+    const savedDisconnectedDevices = Array.from(state.devices.values())
+        .filter(d => d.saved && !d.connected);
+
+    if (savedDisconnectedDevices.length === 0) return;
+
+    console.log(`[BLE] Attempting to reconnect to ${savedDisconnectedDevices.length} saved devices...`);
+
+    // Start a short scan to find them if they are nearby
+    try {
+        await startScan(10000);
+    } catch (e) {
+        console.error('[BLE] Auto-reconnect scan failed:', e);
+    }
 }
 
 export function resetStateForTesting() {
@@ -50,6 +112,8 @@ export async function initialize(): Promise<{ mockMode: boolean; adapterState: s
 
     console.log('[BLE] Initializing...');
     loadSettings();
+    populateSavedDevices();
+    startAutoReconnectLoop();
 
     try {
         const platform = process.platform;

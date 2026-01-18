@@ -4,16 +4,38 @@ import path from 'path';
 import { state, emitEvent } from './state';
 import type { LightState } from '@/types';
 
+// Try to find the project root reliably
+const PROJECT_ROOT = process.cwd();
+const SETTINGS_FILE = path.resolve(PROJECT_ROOT, 'device-settings.json');
+
 interface DeviceSetting {
     targetChar?: string;
     profileId?: string;
     saved?: boolean;
     customName?: string;
-    lastState?: LightState;
+    lastState?: LightState | any; // Any for AC compatibility
 }
 
-const SETTINGS_FILE = path.join(process.cwd(), 'device-settings.json');
-const deviceSettings = new Map<string, DeviceSetting>();
+// Ensure the settings map survives Next.js hot-reloads
+const globalForSettings = global as unknown as {
+    deviceSettings: Map<string, DeviceSetting>;
+    settingsLoaded: boolean;
+};
+
+const deviceSettings = globalForSettings.deviceSettings || new Map<string, DeviceSetting>();
+if (!globalForSettings.deviceSettings) globalForSettings.deviceSettings = deviceSettings;
+
+let settingsLoaded = globalForSettings.settingsLoaded || false;
+function setSettingsLoaded(val: boolean) {
+    settingsLoaded = val;
+    globalForSettings.settingsLoaded = val;
+}
+
+function ensureLoad() {
+    if (!settingsLoaded) {
+        loadSettings();
+    }
+}
 
 /**
  * Persist settings to file
@@ -21,7 +43,8 @@ const deviceSettings = new Map<string, DeviceSetting>();
 function saveSettings() {
     try {
         const obj = Object.fromEntries(deviceSettings);
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(obj, null, 2));
+        const data = JSON.stringify(obj, null, 2);
+        fs.writeFileSync(SETTINGS_FILE, data);
     } catch (e) {
         console.error('[BLE] Failed to save settings:', e);
     }
@@ -31,6 +54,7 @@ function saveSettings() {
  * Load settings from file
  */
 export function loadSettings() {
+    if (settingsLoaded) return;
     try {
         if (fs.existsSync(SETTINGS_FILE)) {
             const content = fs.readFileSync(SETTINGS_FILE, 'utf-8');
@@ -38,18 +62,21 @@ export function loadSettings() {
             Object.entries(obj).forEach(([id, settings]) => {
                 deviceSettings.set(id, settings as DeviceSetting);
             });
-            console.log(`[BLE] Loaded settings for ${deviceSettings.size} devices`);
+            console.log(`[SETTINGS] Loaded for ${deviceSettings.size} devices from ${SETTINGS_FILE}`);
         }
+        setSettingsLoaded(true);
     } catch (e) {
-        console.error('[BLE] Failed to load settings:', e);
+        console.error('[SETTINGS] Failed to load:', e);
     }
 }
 
 export function getDeviceSettingsMap() {
+    ensureLoad();
     return deviceSettings;
 }
 
 export function toggleSaveDevice(deviceId: string) {
+    ensureLoad();
     const settings = deviceSettings.get(deviceId) || {};
     settings.saved = !settings.saved;
     deviceSettings.set(deviceId, settings);
@@ -66,6 +93,7 @@ export function toggleSaveDevice(deviceId: string) {
 }
 
 export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
+    ensureLoad();
     const existing = deviceSettings.get(deviceId) || {};
     const updated = { ...existing, ...settings };
     deviceSettings.set(deviceId, updated);
@@ -92,9 +120,9 @@ export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
 /**
  * Update the last known state for a device and persist it
  */
-export function updateDeviceLastState(deviceId: string, partialState: Partial<LightState>) {
-    const existing = deviceSettings.get(deviceId) || {};
-    const lastState = existing.lastState || { power: false, brightness: 100, colorTemperature: 50 };
+export function updateDeviceLastState(deviceId: string, partialState: Partial<LightState> | any) {
+    const existing = getDeviceSettings(deviceId);
+    const lastState = existing.lastState || {};
 
     const updatedState = { ...lastState, ...partialState };
 
@@ -102,5 +130,6 @@ export function updateDeviceLastState(deviceId: string, partialState: Partial<Li
 }
 
 export function getDeviceSettings(deviceId: string) {
+    ensureLoad();
     return deviceSettings.get(deviceId) || {};
 }

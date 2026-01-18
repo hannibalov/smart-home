@@ -1,18 +1,28 @@
 import { NextResponse } from 'next/server';
 import { startScan, stopScan, getDevices, getScanStatus, initialize } from '@/services/ble';
+import { getWiFiDevices } from '@/services/ac';
+import { shouldProxy, proxyToRemote } from '@/services/remoteProxy';
 
 /**
  * GET /api/devices - List all discovered devices
  */
-export async function GET() {
+export async function GET(request: Request) {
+    if (shouldProxy()) return proxyToRemote(request);
+
+    // Initialize BLE service to ensure settings are loaded and auto-reconnect starts
+    await initialize();
+
     try {
-        const devices = getDevices();
+        const bleDevices = getDevices();
+        const wifiDevices = await getWiFiDevices();
         const scanning = getScanStatus();
 
         return NextResponse.json({
-            devices,
+            devices: [...bleDevices, ...wifiDevices],
             scanning,
-            count: devices.length,
+            count: bleDevices.length + wifiDevices.length,
+            bleCount: bleDevices.length,
+            wifiCount: wifiDevices.length,
         });
     } catch (error) {
         console.error('Error getting devices:', error);
@@ -27,6 +37,7 @@ export async function GET() {
  * POST /api/devices - Start device scan
  */
 export async function POST(request: Request) {
+    if (shouldProxy()) return proxyToRemote(request);
     try {
         const body = await request.json().catch(() => ({}));
         const duration = body.duration || 5000;
@@ -53,7 +64,8 @@ export async function POST(request: Request) {
 /**
  * DELETE /api/devices - Stop ongoing scan
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
+    if (shouldProxy()) return proxyToRemote(request);
     try {
         await stopScan();
         return NextResponse.json({ message: 'Scan stopped' });

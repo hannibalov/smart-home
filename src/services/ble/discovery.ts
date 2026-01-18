@@ -65,14 +65,16 @@ export function handleDiscover(peripheral: Peripheral): void {
             characteristics: [],
         });
 
-
-        if (settings.saved && !device.connected) {
-            connectDevice(device.id).catch(err => {
-                console.error(`[BLE] Auto-connect failed for ${device.id}:`, err);
-            });
-        }
-
         emitEvent('device_discovered', device);
+    }
+
+    // Auto-connect to saved devices when discovered
+    const settings = getDeviceSettings(device.id);
+    if (settings.saved && !peripheral.state.includes('connected')) {
+        console.log(`[BLE] Auto-connecting to discovered saved device: ${device.id}`);
+        connectDevice(device.id).catch(err => {
+            console.error(`[BLE] Auto-connect failed for ${device.id}:`, err);
+        });
     }
 }
 
@@ -142,6 +144,13 @@ export async function startScan(durationMs: number = 10000): Promise<BLEDevice[]
                     characteristics: [],
                 });
                 emitEvent('device_discovered', device);
+            }
+
+            // Auto-connect to saved devices in mock mode
+            const settings = getDeviceSettings(device.id);
+            if (settings.saved && !device.connected) {
+                console.log(`[BLE] Mock auto-connecting to saved device: ${device.id}`);
+                connectDevice(device.id).catch(() => { });
             }
         });
 

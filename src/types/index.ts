@@ -11,6 +11,15 @@ export interface BLEDevice {
   customName?: string;
 }
 
+export interface WiFiDevice {
+  id: string; // IP or IP-based ID
+  name: string;
+  ip: string;
+  type: 'ac' | 'generic';
+  connected: boolean;
+  lastSeen: number;
+}
+
 export interface BLECharacteristic {
   uuid: string;
   serviceUuid: string;
@@ -43,10 +52,23 @@ export interface LightState {
   color?: { r: number; g: number; b: number };
 }
 
-export interface ControlCommand {
-  type: 'power' | 'brightness' | 'colorTemperature' | 'color' | 'raw';
-  value: boolean | number | string | { r: number; g: number; b: number };
+export interface ACState {
+  power: boolean;
+  targetTemp: number;
+  currentTemp?: number;
+  mode: 'cool' | 'heat' | 'fan' | 'dry' | 'auto';
+  fanSpeed: 'low' | 'medium' | 'high' | 'auto';
+  swing?: boolean;
 }
+
+export interface ACControlCommand {
+  type: 'power' | 'targetTemp' | 'mode' | 'fanSpeed' | 'swing';
+  value: boolean | number | string;
+}
+
+export type ControlCommand =
+  | { type: 'power' | 'brightness' | 'colorTemperature' | 'color' | 'raw'; value: boolean | number | string | { r: number; g: number; b: number } }
+  | ACControlCommand;
 
 export interface CommandLogEntry {
   id: string;

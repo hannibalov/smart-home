@@ -1,4 +1,3 @@
-
 import type { CommandLogEntry, LightState, ControlCommand, BLECharacteristic } from '@/types';
 import { state, emitEvent, generateId } from './state';
 import { getDeviceSettings, updateDeviceLastState } from './settings';
@@ -41,6 +40,23 @@ function parseILinkStatus(hex: string): Partial<LightState> {
         return result;
     }
 
+    if (cid === '0805') {
+        return { power: data === '01' };
+    }
+    if (cid === '0801') {
+        return { power: true, brightness: Math.floor(parseInt(data, 16) / 2.55) };
+    }
+    if (cid === '0802') {
+        return {
+            power: true,
+            color: {
+                r: parseInt(data.substring(0, 2), 16),
+                g: parseInt(data.substring(2, 4), 16),
+                b: parseInt(data.substring(4, 6), 16)
+            }
+        };
+    }
+
     if (cid === '8425') {
         console.log(`[STATE] parseILinkStatus: CID 8425 detected (static info), ignoring`);
         return {};
@@ -61,6 +77,7 @@ export async function getLightState(deviceId: string): Promise<Partial<LightStat
     }
 
     console.log(`[STATE] getLightState: Starting state retrieval for device ${device.name} (${deviceId})`);
+    const startTime = performance.now();
     console.log(`[STATE] Device services:`, device.services);
     console.log(`[STATE] Device characteristics:`, device.characteristics?.map(c => `${c.uuid} (service: ${c.serviceUuid}, props: ${c.properties.join(',')})`));
 
@@ -91,13 +108,14 @@ export async function getLightState(deviceId: string): Promise<Partial<LightStat
             if (Object.keys(parsed).length > 0) {
                 updateDeviceLastState(deviceId, parsed);
             }
+            console.log(`[STATE] getLightState for ${deviceId} took ${(performance.now() - startTime).toFixed(2)}ms`);
             return parsed;
         }
 
-        console.log(`[STATE] No parser for encoding ${profile.encoding}`);
+        console.log(`[STATE] getLightState for ${deviceId} took ${(performance.now() - startTime).toFixed(2)}ms`);
         return {};
     } catch (e) {
-        console.error(`[STATE] Failed to read state for ${deviceId}:`, e);
+        console.error(`[STATE] Failed to read state for ${deviceId} after ${(performance.now() - startTime).toFixed(2)}ms:`, e);
         if (e instanceof Error) {
             console.error(`[STATE] Error details:`, e.message, e.stack);
         }
@@ -263,6 +281,20 @@ export async function writeCharacteristic(
         logEntry.success = true;
         logEntry.response = 'OK';
         state.commandLog.push(logEntry);
+
+        // Attempt to parse state from command for persistence
+        if (value.startsWith('55aa')) {
+            const parsed = parseILinkStatus(value);
+            if (Object.keys(parsed).length > 0) {
+                updateDeviceLastState(deviceId, parsed);
+            }
+        } else if (value.startsWith('7e') || value.startsWith('fb')) {
+            // Triones/MagicHome simple power parsing
+            if (value.substring(0, 6) === '7e0004' || value.substring(0, 6) === '7e0404') {
+                const p = value.substring(6, 8) === '01';
+                updateDeviceLastState(deviceId, { power: p });
+            }
+        }
 
         emitEvent('device_updated', { deviceId, command: value });
         return true;

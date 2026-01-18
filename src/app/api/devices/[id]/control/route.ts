@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { sendLightCommand, writeCharacteristic, getCommandLog, clearCommandLog } from '@/services/ble';
-import type { ControlCommand } from '@/types';
+import { sendACCommand, getWiFiDevices } from '@/services/ac';
+import { shouldProxy, proxyToRemote } from '@/services/remoteProxy';
+import type { ControlCommand, ACControlCommand } from '@/types';
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -13,6 +15,7 @@ export async function GET(
     request: Request,
     { params }: RouteParams
 ) {
+    if (shouldProxy()) return proxyToRemote(request);
     try {
         const { id } = await params;
         const log = getCommandLog(100).filter(entry => entry.deviceId === id || !entry.deviceId);
@@ -30,6 +33,7 @@ export async function GET(
  * POST /api/devices/[id]/control - Send control command
  */
 export async function POST(request: Request, { params }: RouteParams) {
+    if (shouldProxy()) return proxyToRemote(request);
     try {
         const { id } = await params;
         const body = await request.json();
@@ -44,8 +48,16 @@ export async function POST(request: Request, { params }: RouteParams) {
             value: body.value,
         };
 
+        const wifiDevices = await getWiFiDevices();
+        const isWifi = wifiDevices.some(d => d.id === id);
+
+        if (isWifi) {
+            const success = await sendACCommand(id, command as ACControlCommand);
+            return NextResponse.json({ success, deviceType: 'wifi', command });
+        }
+
         const success = await sendLightCommand(id, command);
-        return NextResponse.json({ success, command });
+        return NextResponse.json({ success, deviceType: 'ble', command });
     } catch (error) {
         console.error('[API] Error sending command:', error);
         return NextResponse.json(
@@ -55,7 +67,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+    if (shouldProxy()) return proxyToRemote(request);
     try {
         clearCommandLog(); // We could also filter to clear only for this device if we update ble.ts
         return NextResponse.json({ message: 'Command log cleared' });

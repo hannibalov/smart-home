@@ -21,7 +21,8 @@ import { stopScan } from './discovery';
 
 // I will check the file content first to find `getLightState`.
 
-import { getLightState } from './interaction';
+import { getLightState, sendLightCommand } from './interaction';
+import { getDeviceSettings } from './settings';
 
 /**
  * Connect to a device
@@ -56,16 +57,29 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
     }
 
     console.log(`[BLE] Connecting to ${device.name}...`);
+    const startTime = performance.now();
 
     try {
         // Stop scanning before connecting (required by noble)
-        await stopScan();
+        if (state.isScanning) {
+            console.log(`[BLE] Stopping scan before connection...`);
+            const stopScanStart = performance.now();
+            await stopScan();
+            console.log(`[BLE] stopScan took ${(performance.now() - stopScanStart).toFixed(2)}ms`);
+        } else {
+            console.log(`[BLE] Scan already stopped, skipping stopScan()`);
+        }
 
         // Connect
+        console.log(`[BLE] Calling peripheral.connectAsync()...`);
+        const connectStart = performance.now();
         await peripheral.connectAsync();
-        console.log(`[BLE] Connected to ${device.name}`);
+        console.log(`[BLE] connectAsync took ${(performance.now() - connectStart).toFixed(2)}ms`);
 
+        console.log(`[BLE] Discovering services and characteristics...`);
+        const discoverStart = performance.now();
         const { services, characteristics: chars } = await peripheral.discoverAllServicesAndCharacteristicsAsync();
+        console.log(`[BLE] discovery took ${(performance.now() - discoverStart).toFixed(2)}ms`);
 
         const serviceUuids = new Set<string>();
         for (const service of services) {
@@ -112,20 +126,48 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
 
         console.log(`[CONNECTION] Device connected, attempting to read initial state...`);
         try {
+            const settings = getDeviceSettings(deviceId);
             const initialState = await getLightState(deviceId);
             console.log(`[CONNECTION] Initial state retrieved:`, initialState);
 
+            // Restore saved state if it exists and we have a last known state
+            if (settings.lastState) {
+                console.log(`[CONNECTION] Restoring saved state for ${device.name}:`, settings.lastState);
+
+                // Restore power first if it was on
+                if (settings.lastState.power) {
+                    await sendLightCommand(deviceId, { type: 'power', value: true });
+
+                    // Restore other properties if they exist
+                    if (settings.lastState.brightness !== undefined) {
+                        await sendLightCommand(deviceId, { type: 'brightness', value: settings.lastState.brightness });
+                    }
+                    if (settings.lastState.color) {
+                        await sendLightCommand(deviceId, { type: 'color', value: settings.lastState.color });
+                    }
+                    if (settings.lastState.colorTemperature !== undefined) {
+                        await sendLightCommand(deviceId, { type: 'colorTemperature', value: settings.lastState.colorTemperature });
+                    }
+                } else {
+                    // Just ensure it's off if it was off
+                    await sendLightCommand(deviceId, { type: 'power', value: false });
+                }
+            }
+
             if (Object.keys(initialState).length > 0) {
                 device.state = {
-                    power: initialState.power ?? false,
-                    brightness: initialState.brightness ?? 100,
-                    colorTemperature: initialState.colorTemperature ?? 50,
+                    power: initialState.power ?? settings.lastState?.power ?? false,
+                    brightness: initialState.brightness ?? settings.lastState?.brightness ?? 100,
+                    colorTemperature: initialState.colorTemperature ?? settings.lastState?.colorTemperature ?? 50,
+                    ...settings.lastState,
                     ...initialState
                 } as LightState;
                 console.log(`[CONNECTION] Device state updated:`, device.state);
                 emitEvent('device_updated', device);
-            } else {
-                console.log(`[CONNECTION] No state data retrieved (empty object)`);
+            } else if (settings.lastState) {
+                // If we couldn't read the state but we have a last known state, use that
+                device.state = { ...settings.lastState };
+                emitEvent('device_updated', device);
             }
         } catch (e) {
             console.error(`[CONNECTION] Failed to read initial state for ${device.name}:`, e);
@@ -134,9 +176,10 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
             }
         }
 
+        console.log(`[BLE] Total connection flow for ${device.name} took ${(performance.now() - startTime).toFixed(2)}ms`);
         return device;
     } catch (error) {
-        console.error(`[BLE] Connection failed:`, error);
+        console.error(`[BLE] Connection failed after ${(performance.now() - startTime).toFixed(2)}ms:`, error);
         throw error;
     }
 }
