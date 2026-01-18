@@ -2,6 +2,9 @@
   "816317bee3a2b892566ab3c7b4d95ec7": {
     "saved": true,
     "customName": "Bedroom",
+    "type": "light",
+    "connectivity": "bluetooth",
+    "protocol": "ilink",
     "lastState": {
       "power": true,
       "color": {
@@ -14,6 +17,9 @@
   "194876bafc6170b77663cc5685a70373": {
     "saved": true,
     "customName": "Living room",
+    "type": "light",
+    "connectivity": "bluetooth",
+    "protocol": "triones",
     "lastState": {
       "power": true,
       "color": {
@@ -21,7 +27,22 @@
         "g": 255,
         "b": 255
       },
-      "brightness": 100
+      "brightness": 96
+    }
+  },
+  "192.168.1.13": {
+    "saved": true,
+    "customName": "Pro Klima AC (Living Room)",
+    "type": "ac",
+    "connectivity": "wifi",
+    "protocol": "tuya",
+    "lastState": {
+      "power": true,
+      "targetTemp": 25,
+      "currentTemp": 24,
+      "mode": "cool",
+      "fanSpeed": "auto",
+      "swing": false
     }
   }
 }

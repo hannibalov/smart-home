@@ -68,7 +68,7 @@ export function handleDiscover(peripheral: Peripheral): void {
         emitEvent('device_discovered', device);
     }
 
-    // Auto-connect to saved devices when discovered
+    // 4. Auto-connect to saved devices when discovered
     const settings = getDeviceSettings(device.id);
     if (settings.saved && !peripheral.state.includes('connected')) {
         console.log(`[BLE] Discovered saved device ${device.name}(${device.id}), connecting...`);
@@ -76,10 +76,19 @@ export function handleDiscover(peripheral: Peripheral): void {
             console.error(`[BLE] Auto-connect failed for ${device.id}:`, err);
         });
 
-        // Optimization: if we were Scanning specifically for saved devices, 
-        // we might want to check if all are found and stop early.
-        // But for simplicity, we just emit the event and let the scan continue 
-        // until timeout or until we find all.
+        // Optimization: if we were scanning specifically for saved devices,
+        // stop as soon as we found all of them
+        if (state.scanType === 'auto') {
+            const savedDisconnected = Array.from(state.devices.values())
+                .filter(d => d.saved && !d.connected);
+
+            const peripheralsKnown = savedDisconnected.every(d => state.peripherals.has(d.id));
+
+            if (peripheralsKnown) {
+                console.log('[BLE] All saved devices found or known, stopping auto-scan early.');
+                stopScan().catch(err => console.error('[BLE] Failed to stop scan:', err));
+            }
+        }
     }
 
     // Always emit an update if it was an existing device (to refresh RSSI/lastSeen in UI)
@@ -133,20 +142,25 @@ export async function stopScan(): Promise<void> {
     }
 
     state.isScanning = false;
+    state.scanType = null;
     emitEvent('scan_stopped', { devicesFound: state.devices.size });
 }
 
 /**
  * Start scanning for BLE devices
  */
-export async function startScan(durationMs: number = 10000): Promise<BLEDevice[]> {
+export async function startScan(
+    durationMs: number = 10000,
+    type: 'manual' | 'auto' = 'manual'
+): Promise<BLEDevice[]> {
     if (state.isScanning) {
-        console.log('[BLE] Scan requested but already in progress. Returning current devices.');
+        console.log(`[BLE] Scan requested (${type}) but already in progress (${state.scanType}). Returning current devices.`);
         return getDevices();
     }
 
     state.isScanning = true;
-    emitEvent('scan_started', { durationMs });
+    state.scanType = type;
+    emitEvent('scan_started', { durationMs, type });
 
     if (state.isMockMode) {
         // Simulate scan delay

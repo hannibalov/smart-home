@@ -66,7 +66,7 @@ export function useDeviceDashboard() {
             if (data.device) {
                 setSelectedDevice(data.device);
                 fetchDevices();
-                
+
                 // Automatically read state after connection (connection.ts also does this, but we ensure UI is updated)
                 if (data.device.connected) {
                     // Small delay to allow backend to read state first
@@ -241,13 +241,25 @@ export function useDeviceDashboard() {
 
                 switch (data.type) {
                     case 'scan_started':
-                        setScanning(true);
+                        const scanPayload = data.payload as { type?: string };
+                        if (scanPayload?.type === 'manual') {
+                            setScanning(true);
+                        }
                         break;
                     case 'scan_stopped':
                         setScanning(false);
-                        fetchDevices();
+                        // Only fetch if it was a manual scan that finished
+                        // Auto-scans don't usually change the list of saved devices
+                        if (scanning) {
+                            fetchDevices();
+                        }
                         break;
                     case 'device_discovered':
+                        // Only fetch on discovery if we are manually scanning
+                        if (scanning) {
+                            fetchDevices();
+                        }
+                        break;
                     case 'device_disconnected':
                         fetchDevices();
                         break;
@@ -270,10 +282,15 @@ export function useDeviceDashboard() {
                         }
                         break;
                     case 'device_updated':
-                        fetchDevices();
-                        // If the updated device is selected, update its state
+                        // No need to fetch ALL devices if just one updated
+                        // fetchDevices(); 
+
+                        // Update the devices list in memory if possible to avoid full fetch
                         if (data.payload && typeof data.payload === 'object') {
                             const updatedDevice = data.payload as DeviceDetails;
+
+                            setDevices(prev => prev.map(d => d.id === updatedDevice.id ? { ...d, ...updatedDevice } : d));
+
                             if (selectedDevice?.id === updatedDevice.id && updatedDevice.state) {
                                 setSelectedDevice({
                                     ...selectedDevice,

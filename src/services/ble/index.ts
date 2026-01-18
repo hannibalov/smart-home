@@ -90,14 +90,17 @@ async function attemptReconnects() {
         }
     }
 
-    if (stillNeeded.length === 0) return;
+    if (stillNeeded.length === 0) {
+        console.log('[BLE] All saved devices have known peripherals, skipping scan.');
+        return;
+    }
 
-    console.log(`[BLE] Attempting to find ${stillNeeded.length} devices via brief scan...`);
+    console.log(`[BLE] Attempting to find ${stillNeeded.length} devices via brief auto-scan...`);
 
     // 2. Only scan if we have saved devices that aren't in our peripheral map
     try {
-        // Start a short scan. handleDiscover will handle the connection.
-        await startScan(15000);
+        // Start a short scan. handleDiscover will handle the connection and early stop.
+        await startScan(15000, 'auto');
     } catch (e) {
         console.error('[BLE] Auto-reconnect scan failed:', e);
     }

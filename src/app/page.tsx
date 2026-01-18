@@ -32,7 +32,6 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8">
         <DashboardHeader
           deviceCount={savedDevices.length}
-          scanning={scanning}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

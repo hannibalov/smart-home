@@ -15,6 +15,7 @@ if (!globalForBLE.bleState) {
         characteristics: new Map(),
         commandLog: [],
         isScanning: false,
+        scanType: null,
         scanTimeout: null,
         bleEvents: new EventEmitter(),
     };

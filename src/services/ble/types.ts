@@ -17,6 +17,7 @@ export interface BLEState {
     characteristics: Map<string, Map<string, Characteristic>>;
     commandLog: CommandLogEntry[];
     isScanning: boolean;
+    scanType: 'manual' | 'auto' | null;
     scanTimeout: NodeJS.Timeout | null;
     bleEvents: EventEmitter;
 }
