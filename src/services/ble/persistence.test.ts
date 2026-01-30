@@ -1,34 +1,31 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     initialize,
     resetStateForTesting,
     updateDeviceLastState,
     getDeviceSettings,
     handleDiscover,
-    sendLightCommand,
     getStateForTesting
 } from '../ble';
 import { updateDeviceState } from '../hub';
-import { EventEmitter } from 'events';
+import { loadDevicesFromDb, saveDeviceToDb } from '../db';
+import { resetSettingsForTesting } from './settings';
 
-// FS Mock
-vi.mock('fs', () => ({
-    default: {
-        existsSync: vi.fn(() => true),
-        writeFileSync: vi.fn(),
-        readFileSync: vi.fn(() => '{}'),
-    },
-    existsSync: vi.fn(() => true),
-    writeFileSync: vi.fn(),
-    readFileSync: vi.fn(() => '{}'),
+// Mock DB service
+vi.mock('../db', () => ({
+    loadDevicesFromDb: vi.fn(),
+    saveDeviceToDb: vi.fn(),
 }));
-
-import fs from 'fs';
 
 describe('BLE State Persistence', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
+        resetSettingsForTesting();
         resetStateForTesting();
+
+        // Default empty DB
+        (loadDevicesFromDb as any).mockResolvedValue({});
+
         await initialize();
     });
 
@@ -40,21 +37,22 @@ describe('BLE State Persistence', () => {
 
         const settings = getDeviceSettings(deviceId);
         expect(settings.lastState).toEqual(expect.objectContaining(state));
-        expect(fs.writeFileSync).toHaveBeenCalled();
+        expect(saveDeviceToDb).toHaveBeenCalled();
     });
 
-    it('should restore last state when device is discovered', () => {
+    it('should restore last state when device is discovered', async () => {
         const deviceId = 'test-device';
         const savedState = { power: true, brightness: 75, colorTemperature: 50 };
 
-        // Mock existing settings in readFileSync
-        (fs.readFileSync as any).mockReturnValue(JSON.stringify({
+        // Mock existing settings in DB
+        (loadDevicesFromDb as any).mockResolvedValue({
             [deviceId]: { lastState: savedState, saved: true }
-        }));
+        });
 
         // Re-initialize to load mocked settings
+        resetSettingsForTesting();
         resetStateForTesting();
-        initialize();
+        await initialize();
 
         // Simulate discovery
         const mockPeripheral = {
@@ -73,7 +71,7 @@ describe('BLE State Persistence', () => {
         expect(device?.state).toEqual(savedState);
     });
 
-    it('should update state when sendLightCommand is successful', async () => {
+    it('should update state when updateDeviceState is called', async () => {
         const deviceId = 'test-device';
 
         // Setup device in state
@@ -89,7 +87,6 @@ describe('BLE State Persistence', () => {
             lastSeen: Date.now()
         } as any);
 
-        // Mock writeCharacteristic to succeed (mock mode handles this)
         state.isMockMode = true;
 
         // In new architecture, we update state through the hub
@@ -97,7 +94,7 @@ describe('BLE State Persistence', () => {
 
         const settings = getDeviceSettings(deviceId);
         expect(settings.lastState?.brightness).toBe(42);
-        expect(fs.writeFileSync).toHaveBeenCalled();
+        expect(saveDeviceToDb).toHaveBeenCalled();
     });
 
     it('should NOT save if the state hasn\'t changed', async () => {
@@ -106,11 +103,10 @@ describe('BLE State Persistence', () => {
 
         // First save
         updateDeviceLastState(deviceId, state);
-        expect(fs.writeFileSync).toHaveBeenCalled();
+        expect(saveDeviceToDb).toHaveBeenCalledTimes(1);
 
         // Second save with same data
-        (fs.writeFileSync as any).mockClear();
         updateDeviceLastState(deviceId, state);
-        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(saveDeviceToDb).toHaveBeenCalledTimes(1);
     });
 });

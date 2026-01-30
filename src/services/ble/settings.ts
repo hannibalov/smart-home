@@ -1,12 +1,6 @@
-
-import fs from 'fs';
-import path from 'path';
 import { state, emitEvent } from './state';
 import type { LightState, DeviceType, DeviceConnectivity, DeviceProtocol } from '@/types';
-
-// Try to find the project root reliably
-const PROJECT_ROOT = process.cwd();
-const SETTINGS_FILE = path.resolve(PROJECT_ROOT, 'device-settings.json');
+import { loadDevicesFromDb, saveDeviceToDb } from '../db'; // Ensure this path is correct relative to src/services/ble/settings.ts
 
 interface DeviceSetting {
     targetChar?: string;
@@ -16,7 +10,7 @@ interface DeviceSetting {
     type?: DeviceType;
     connectivity?: DeviceConnectivity;
     protocol?: DeviceProtocol;
-    lastState?: LightState | any; // Any for AC compatibility
+    lastState?: LightState | any;
 }
 
 // Ensure the settings map survives Next.js hot-reloads
@@ -41,38 +35,40 @@ export function resetSettingsForTesting() {
 
 function ensureLoad() {
     if (!settingsLoaded) {
+        // This is async in reality, but for the synchronous map access pattern we trigger it 
+        // and let it settle. In a real app we might want to await this during startup.
         loadSettings();
     }
 }
 
 /**
- * Persist settings to file
+ * Persist settings to DB
  */
-function saveSettings(reason?: string) {
+function saveSettings(deviceId: string, reason?: string) {
     try {
-        const obj = Object.fromEntries(deviceSettings);
-        const data = JSON.stringify(obj, null, 2);
-        fs.writeFileSync(SETTINGS_FILE, data);
-        console.log(`[SETTINGS] Saved ${reason ? `for ${reason} ` : ''}to ${SETTINGS_FILE}`);
+        const settings = deviceSettings.get(deviceId);
+        if (settings) {
+            console.log(`[SETTINGS] Saving ${reason ? `for ${reason} ` : ''}to DB for ${deviceId}`);
+            // Fire and forget save
+            saveDeviceToDb(deviceId, settings);
+        }
     } catch (e) {
         console.error('[BLE] Failed to save settings:', e);
     }
 }
 
 /**
- * Load settings from file
+ * Load settings from DB
  */
-export function loadSettings() {
+export async function loadSettings() {
     if (settingsLoaded) return;
     try {
-        if (fs.existsSync(SETTINGS_FILE)) {
-            const content = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-            const obj = JSON.parse(content);
-            Object.entries(obj).forEach(([id, settings]) => {
-                deviceSettings.set(id, settings as DeviceSetting);
-            });
-            console.log(`[SETTINGS] Loaded for ${deviceSettings.size} devices from ${SETTINGS_FILE}`);
-        }
+        console.log('[SETTINGS] Loading from DB...');
+        const dbDevices = await loadDevicesFromDb();
+        Object.entries(dbDevices).forEach(([id, settings]) => {
+            deviceSettings.set(id, settings as DeviceSetting);
+        });
+        console.log(`[SETTINGS] Loaded for ${deviceSettings.size} devices from DB`);
         setSettingsLoaded(true);
     } catch (e) {
         console.error('[SETTINGS] Failed to load:', e);
@@ -89,7 +85,7 @@ export function toggleSaveDevice(deviceId: string) {
     const settings = deviceSettings.get(deviceId) || {};
     settings.saved = !settings.saved;
     deviceSettings.set(deviceId, settings);
-    saveSettings(deviceId);
+    saveSettings(deviceId, 'toggleSave');
 
     // Also update the device object in memory if it exists
     const device = state.devices.get(deviceId);
@@ -113,13 +109,13 @@ export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
     });
 
     if (!hasChanged) {
-        console.log(`[SETTINGS] Change detection: No changes for ${deviceId}, skipping disk write.`);
+        console.log(`[SETTINGS] Change detection: No changes for ${deviceId}, skipping DB write.`);
         return;
     }
 
     const updated = { ...existing, ...settings };
     deviceSettings.set(deviceId, updated);
-    saveSettings(deviceId);
+    saveSettings(deviceId, 'update');
 
     // Also update the device object in memory if it exists
     const device = state.devices.get(deviceId);
@@ -158,3 +154,4 @@ export function getDeviceSettings(deviceId: string) {
     ensureLoad();
     return deviceSettings.get(deviceId) || {};
 }
+

@@ -12,6 +12,12 @@ import {
 } from './ble';
 import { EventEmitter } from 'events';
 
+// Mock DB service
+vi.mock('./db', () => ({
+    loadDevicesFromDb: vi.fn().mockResolvedValue({}),
+    saveDeviceToDb: vi.fn(),
+}));
+
 interface MockNoble extends EventEmitter {
     startScanningAsync: () => Promise<void>;
     stopScanningAsync: () => Promise<void>;
@@ -23,17 +29,7 @@ mockNoble.startScanningAsync = vi.fn().mockResolvedValue(undefined);
 mockNoble.stopScanningAsync = vi.fn().mockResolvedValue(undefined);
 mockNoble.state = 'poweredOn';
 
-// FS Mock
-vi.mock('fs', () => ({
-    default: {
-        existsSync: () => false,
-        writeFileSync: vi.fn(),
-        readFileSync: () => '{}',
-    },
-    existsSync: () => false,
-    writeFileSync: vi.fn(),
-    readFileSync: () => '{}',
-}));
+
 
 describe('BLE Service', () => {
     beforeEach(async () => {
