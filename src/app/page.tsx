@@ -1,6 +1,8 @@
 'use client';
 
 import { signOut } from 'next-auth/react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/common/Header';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeviceList from '@/components/dashboard/DeviceList';
@@ -8,6 +10,8 @@ import ControlPanel from '@/components/dashboard/ControlPanel';
 import { useDeviceDashboard } from '@/hooks/useDeviceDashboard';
 
 export default function Home() {
+  const router = useRouter();
+  const [isScanning, setIsScanning] = useState(false);
   const {
     devices,
     profiles,
@@ -23,6 +27,12 @@ export default function Home() {
   } = useDeviceDashboard();
 
   const savedDevices = devices.filter(d => d.saved);
+
+  const handleScan = () => {
+    setIsScanning(true);
+    // Navigate to scan page
+    router.push('/scan');
+  };
 
   return (
     <div className="min-h-screen">
@@ -40,6 +50,8 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8">
         <DashboardHeader
           deviceCount={savedDevices.length}
+          scanning={isScanning}
+          onScan={handleScan}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

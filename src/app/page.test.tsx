@@ -8,6 +8,17 @@ vi.mock('next-auth/react', () => ({
   signOut: vi.fn(),
 }));
 
+// Mock next/navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+  }),
+}));
+
 // Mock the hooks and components
 vi.mock('@/hooks/useDeviceDashboard', () => ({
   useDeviceDashboard: () => ({

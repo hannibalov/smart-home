@@ -1,9 +1,6 @@
-import NextAuth, { type NextAuthOptions } from "next-auth";
+import NextAuth, { type NextAuthOptions, Account, Profile } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-
-// NOTE: For production, use AWS Cognito provider or implement custom database integration
-// For now, this uses credentials provider as a placeholder
 
 declare module "next-auth" {
     interface Session {
@@ -29,23 +26,39 @@ export const authOptions: NextAuthOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                // TODO: Implement your own credentials logic here
-                // This could connect to:
-                // 1. AWS Cognito Admin API
-                // 2. Your own database with bcrypt
-                // 3. AWS Amplify
-
-                // For now, reject all credential attempts
-                // Replace this with actual authentication logic
                 if (!credentials?.email || !credentials?.password) {
                     return null;
                 }
 
-                // Example: validate against your backend
-                // const user = await validateUserCredentials(credentials.email, credentials.password);
-                // if (user) return user;
+                try {
+                    // Call the validation endpoint
+                    const response = await fetch(
+                        `${process.env.NEXTAUTH_URL}/api/auth/validate-credentials`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                email: credentials.email,
+                                password: credentials.password,
+                            }),
+                        }
+                    );
 
-                return null;
+                    if (!response.ok) {
+                        return null;
+                    }
+
+                    const { user } = await response.json();
+
+                    return {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                    };
+                } catch (error) {
+                    console.error("Credentials authorization error:", error);
+                    return null;
+                }
             },
         }),
     ],
@@ -53,6 +66,40 @@ export const authOptions: NextAuthOptions = {
         signIn: "/login",
     },
     callbacks: {
+        async signIn({ user, account, profile }) {
+            // Handle Google OAuth sign in
+            if (account?.provider === 'google' && profile) {
+                try {
+                    // Sync Google user to database
+                    const response = await fetch(
+                        `${process.env.NEXTAUTH_URL}/api/auth/google-sync`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                google_id: profile.sub || account.providerAccountId,
+                                email: profile.email,
+                                name: profile.name,
+                            }),
+                        }
+                    );
+
+                    if (!response.ok) {
+                        console.error('Failed to sync Google user');
+                        return false;
+                    }
+
+                    const { user: dbUser } = await response.json();
+                    // Store user ID from database in user object
+                    user.id = dbUser.id;
+                } catch (error) {
+                    console.error('Error syncing Google user:', error);
+                    return false;
+                }
+            }
+
+            return true;
+        },
         async session({ session, token }) {
             if (session.user) {
                 session.user.id = token.sub || "";

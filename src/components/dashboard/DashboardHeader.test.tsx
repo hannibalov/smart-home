@@ -9,7 +9,7 @@ test('DashboardHeader renders device count', () => {
 
 test('DashboardHeader shows scanning state', () => {
   render(<DashboardHeader deviceCount={0} scanning={true} onScan={() => {}} />);
-  expect(screen.getByText('Scanning...')).toBeDefined();
+  expect(screen.getByText('Scanning...', { selector: 'p' })).toBeDefined();
   expect(screen.getByRole('button')).toBeDisabled();
 });
 

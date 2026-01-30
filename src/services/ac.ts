@@ -94,7 +94,7 @@ export async function sendACCommand(
     console.log(`[AC] Sending command to ${deviceId}:`, command);
 
     const newState = { [command.type]: command.value };
-    await updateDeviceState(deviceId, newState, 'ui');
+    await updateDeviceState(deviceId, newState, 'hardware');
 
     // Update local state is now handled by Hub (via updateDeviceState)
     // but ac.ts keeps its own map for quick access/non-BLE devices

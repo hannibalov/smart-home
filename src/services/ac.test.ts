@@ -1,11 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock dependencies BEFORE importing the module under test
+vi.mock('./ble/settings', () => ({
+    getDeviceSettingsMap: vi.fn(() => new Map([
+        ['192.168.1.99', {
+            saved: true,
+            customName: 'Pro Klima',
+            type: 'ac',
+            connectivity: 'wifi',
+            protocol: 'tuya',
+            lastState: {
+                power: false,
+                targetTemp: 22,
+                currentTemp: 24,
+                mode: 'cool',
+                fanSpeed: 'auto',
+                swing: false
+            }
+        }]
+    ])),
+    getDeviceSettings: vi.fn(),
+    updateDeviceLastState: vi.fn()
+}));
+
+vi.mock('./hub', () => ({
+    updateDeviceState: vi.fn()
+}));
+
 import { getWiFiDevices, getACState, sendACCommand } from './ac';
+import { updateDeviceState } from './hub';
 
 describe('AC Service', () => {
     it('should return mock AC device', async () => {
         const devices = await getWiFiDevices();
         expect(devices.length).toBeGreaterThan(0);
         expect(devices[0].name).toContain('Pro Klima');
+        expect(devices[0].id).toBe('192.168.1.99');
     });
 
     it('should return initial AC state', async () => {
@@ -25,6 +55,9 @@ describe('AC Service', () => {
 
         const state = await getACState(deviceId);
         expect(state?.power).toBe(true);
+
+        // Verify hub update called with 'hardware'
+        expect(updateDeviceState).toHaveBeenCalledWith(deviceId, { power: true }, 'hardware');
     });
 
     it('should update AC state when targetTemp command is sent', async () => {
@@ -36,5 +69,8 @@ describe('AC Service', () => {
 
         const state = await getACState(deviceId);
         expect(state?.targetTemp).toBe(25);
+
+        // Verify hub update called with 'hardware'
+        expect(updateDeviceState).toHaveBeenCalledWith(deviceId, { targetTemp: 25 }, 'hardware');
     });
 });
