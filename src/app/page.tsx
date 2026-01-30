@@ -1,5 +1,6 @@
 'use client';
 
+import { signOut } from 'next-auth/react';
 import Header from '@/components/common/Header';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeviceList from '@/components/dashboard/DeviceList';
@@ -10,10 +11,8 @@ export default function Home() {
   const {
     devices,
     profiles,
-    scanning,
     selectedDevice,
     commandLog,
-    startScan,
     connectDevice,
     disconnectDevice,
     selectDevice,
@@ -28,6 +27,15 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Header mockMode={false} />
+      
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
+        >
+          Log Out
+        </button>
+      </div>
 
       <main className="container mx-auto px-4 py-8">
         <DashboardHeader

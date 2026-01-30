@@ -2,7 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +10,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check authentication on page load
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/session");
+        const session = await response.json();
+        
+        if (session?.user) {
+          // User is already authenticated, redirect to home
+          router.push("/");
+        }
+      } catch {
+        // Session check failed, stay on login page
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleCredentialsLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,11 +59,27 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      await signIn("google", { redirectTo: "/" });
+      const result = await signIn("google", { redirect: false });
+      if (result?.ok) {
+        router.push("/");
+      } else if (result?.error) {
+        setError("Google login failed. Please try again.");
+      }
     } catch {
       setError("Google login failed. Please try again.");
     }
   };
+
+  // Show loading state while authentication is being checked
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-700">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
