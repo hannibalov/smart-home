@@ -12,3 +12,9 @@ global.EventSource = class {
     constructor() { }
     close = vi.fn();
 } as unknown as typeof EventSource;
+
+// Mock environment variables for tests
+process.env.NEXTAUTH_URL = 'http://localhost:3000';
+process.env.AUTH_SECRET = 'test-secret-key-for-testing-only';
+process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
+process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
