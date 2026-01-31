@@ -10,13 +10,13 @@
  */
 
 export function GET() {
-	return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
-		status: 404,
-	})
+    return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
+        status: 404,
+    })
 }
 
 export function POST() {
-	return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
-		status: 404,
-	})
+    return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
+        status: 404,
+    })
 }
