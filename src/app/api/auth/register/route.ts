@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { hashPassword } from '@/lib/password'
+import { createAdminSupabaseClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
     try {
@@ -22,46 +21,38 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check if user already exists
-        const { data: existingUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', email)
-            .single()
+        // Use admin client to create user with email/password
+        const supabaseAdmin = createAdminSupabaseClient()
 
-        if (existingUser) {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: false,
+        })
+
+        if (authError) {
+            console.error('Error creating auth user:', authError)
             return NextResponse.json(
-                { error: 'User already exists' },
-                { status: 409 }
+                { error: authError.message },
+                { status: 400 }
             )
         }
 
-        // Hash password
-        const passwordHash = hashPassword(password)
-
-        // Insert new user
-        const { data: newUser, error: insertError } = await supabase
+        // Update user profile in the users table
+        const { error: updateError } = await supabaseAdmin
             .from('users')
-            .insert([
-                {
-                    email,
-                    password_hash: passwordHash,
-                    name: name || email.split('@')[0],
-                },
-            ])
-            .select('id, email, name')
-            .single()
+            .update({
+                name: name || email.split('@')[0],
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', authData.user.id)
 
-        if (insertError) {
-            console.error('Error creating user:', insertError)
-            return NextResponse.json(
-                { error: 'Failed to create user' },
-                { status: 500 }
-            )
+        if (updateError) {
+            console.error('Error updating user profile:', updateError)
         }
 
         return NextResponse.json(
-            { user: newUser, message: 'User created successfully' },
+            { user: { id: authData.user.id, email: authData.user.email }, message: 'User created successfully' },
             { status: 201 }
         )
     } catch (error) {

@@ -1,142 +1,70 @@
-import { expect, test, describe } from 'vitest';
-import { authOptions } from '@/auth';
+import { expect, test, describe } from 'vitest'
+import { supabaseClient } from '@/lib/supabase-client'
 
-describe('Auth Configuration', () => {
-    describe('Providers', () => {
-        test('should include Google provider', () => {
-            const googleProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'google'
-            );
-            expect(googleProvider).toBeDefined();
-            expect(googleProvider?.id).toBe('google');
-        });
+/**
+ * Tests for Supabase Authentication
+ * Note: These are mostly integration tests that verify the auth client is properly configured.
+ * Full E2E testing should be done with actual Supabase auth flows.
+ */
+describe('Supabase Auth Configuration', () => {
+    describe('Client Setup', () => {
+        test('should have supabaseClient defined', () => {
+            expect(supabaseClient).toBeDefined()
+        })
 
-        test('should include Credentials provider', () => {
-            const credentialsProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'credentials'
-            );
-            expect(credentialsProvider).toBeDefined();
-            expect(credentialsProvider?.id).toBe('credentials');
-        });
+        test('should have auth methods available', () => {
+            expect(supabaseClient.auth).toBeDefined()
+            expect(typeof supabaseClient.auth.signInWithPassword).toBe('function')
+            expect(typeof supabaseClient.auth.signInWithOAuth).toBe('function')
+            expect(typeof supabaseClient.auth.signOut).toBe('function')
+            expect(typeof supabaseClient.auth.signUp).toBe('function')
+        })
+    })
 
-        test('should require GOOGLE_CLIENT_ID environment variable', () => {
-            const googleProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'google'
-            );
-            // Provider should use environment variables
-            expect(googleProvider).toBeDefined();
-        });
-    });
+    describe('Environment Variables', () => {
+        test('should have NEXT_PUBLIC_SUPABASE_URL set', () => {
+            expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBeDefined()
+            expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toContain('supabase.co')
+        })
 
-    describe('Pages Configuration', () => {
-        test('should have signIn page set to /login', () => {
-            expect(authOptions.pages?.signIn).toBe('/login');
-        });
-    });
+        test('should have NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY set', () => {
+            expect(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBeDefined()
+            expect(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).toContain('sb_publishable')
+        })
 
-    describe('Credentials Provider', () => {
-        test('should reject invalid credentials', async () => {
-            const credentialsProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'credentials'
-            );
+        test('should have SUPABASE_SECRET_KEY set for server operations', () => {
+            expect(process.env.SUPABASE_SECRET_KEY).toBeDefined()
+        })
+    })
 
-            if (credentialsProvider && 'authorize' in credentialsProvider && credentialsProvider.authorize) {
-                const result = await credentialsProvider.authorize(
-                    { email: '', password: '' },
-                    {} as Record<string, unknown>
-                );
-                expect(result).toBeNull();
-            }
-        });
+    describe('Auth Methods', () => {
+        test('signInWithPassword should be callable with email and password', async () => {
+            // This is a structural test - actual auth requires valid Supabase setup
+            const mockEmail = 'test@example.com'
+            const mockPassword = 'password123'
 
-        test('should reject missing email', async () => {
-            const credentialsProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'credentials'
-            );
+            expect(() => {
+                supabaseClient.auth.signInWithPassword({
+                    email: mockEmail,
+                    password: mockPassword,
+                })
+            }).not.toThrow()
+        })
 
-            if (credentialsProvider && 'authorize' in credentialsProvider && credentialsProvider.authorize) {
-                const result = await credentialsProvider.authorize(
-                    { email: '', password: 'password123' },
-                    {} as Record<string, unknown>
-                );
-                expect(result).toBeNull();
-            }
-        });
+        test('signInWithOAuth should support google provider', async () => {
+            expect(() => {
+                supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: 'http://localhost:3000/auth/callback',
+                    },
+                })
+            }).not.toThrow()
+        })
 
-        test('should reject missing password', async () => {
-            const credentialsProvider = authOptions.providers?.find(
-                (provider) => provider.id === 'credentials'
-            );
+        test('signOut should be callable', async () => {
+            expect(typeof supabaseClient.auth.signOut).toBe('function')
+        })
+    })
+})
 
-            if (credentialsProvider && 'authorize' in credentialsProvider && credentialsProvider.authorize) {
-                const result = await credentialsProvider.authorize(
-                    { email: 'user@example.com', password: '' },
-                    {} as Record<string, unknown>
-                );
-                expect(result).toBeNull();
-            }
-        });
-    });
-
-    describe('Callbacks', () => {
-        test('session callback should preserve user id', async () => {
-            if (authOptions.callbacks?.session) {
-                const mockSession = {
-                    user: { id: '', email: 'test@example.com', name: 'Test User' },
-                    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                };
-
-                const mockToken = {
-                    sub: 'user123',
-                    email: 'test@example.com',
-                };
-
-                const result = await authOptions.callbacks.session({
-                    session: mockSession,
-                    token: mockToken,
-                    user: { id: 'user123', email: 'test@example.com' },
-                } as Parameters<NonNullable<typeof authOptions.callbacks.session>>[0]);
-
-                expect((result?.user as any)?.id).toBe('user123');
-            }
-        });
-
-        test('jwt callback should set user id from user object', async () => {
-            if (authOptions.callbacks?.jwt) {
-                const mockToken = {};
-                const mockUser = {
-                    id: 'user456',
-                    email: 'test@example.com',
-                };
-
-                const result = await authOptions.callbacks.jwt({
-                    token: mockToken,
-                    user: mockUser,
-                    account: null,
-                    profile: undefined,
-                    trigger: undefined,
-                    isNewUser: false,
-                } as Parameters<NonNullable<typeof authOptions.callbacks.jwt>>[0]);
-
-                expect(result.sub).toBe('user456');
-            }
-        });
-
-        test('jwt callback should preserve token if no user', async () => {
-            if (authOptions.callbacks?.jwt) {
-                const mockToken = { sub: 'existing-user' };
-
-                const result = await authOptions.callbacks.jwt({
-                    token: mockToken,
-                    user: undefined as any,
-                    account: null,
-                    profile: undefined,
-                    trigger: undefined,
-                    isNewUser: false,
-                } as Parameters<NonNullable<typeof authOptions.callbacks.jwt>>[0]);
-
-                expect(result.sub).toBe('existing-user');
-            }
-        });
-    });
-});

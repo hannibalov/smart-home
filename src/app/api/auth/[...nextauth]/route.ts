@@ -1,6 +1,22 @@
-import NextAuth from "next-auth";
-import { authOptions } from "@/auth";
+/**
+ * DEPRECATED: NextAuth route has been replaced with Supabase Auth
+ * 
+ * Authentication is now handled by Supabase Auth directly.
+ * This route is kept for backwards compatibility but no longer used.
+ * 
+ * See:
+ * - /src/lib/supabase-client.ts for client-side auth
+ * - /src/lib/supabase-server.ts for server-side auth
+ */
 
-const handler = NextAuth(authOptions);
+export function GET() {
+	return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
+		status: 404,
+	})
+}
 
-export { handler as GET, handler as POST };
+export function POST() {
+	return new Response('This endpoint is deprecated. Use Supabase Auth instead.', {
+		status: 404,
+	})
+}

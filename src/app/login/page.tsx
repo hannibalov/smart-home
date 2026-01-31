@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { supabaseClient } from "@/lib/supabase-client";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState, useEffect } from "react";
 
@@ -16,8 +16,7 @@ export default function LoginPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/session");
-        const session = await response.json();
+        const { data: { session } } = await supabaseClient.auth.getSession();
         
         if (session?.user) {
           // User is already authenticated, redirect to home
@@ -39,15 +38,14 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const { error: signInError } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
-        redirect: false,
       });
 
-      if (result?.error) {
-        setError(result.error);
-      } else if (result?.ok) {
+      if (signInError) {
+        setError(signInError.message);
+      } else {
         router.push("/");
       }
     } catch {
@@ -59,10 +57,14 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signIn("google", { redirect: false });
-      if (result?.ok) {
-        router.push("/");
-      } else if (result?.error) {
+      const { error: signInError } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (signInError) {
         setError("Google login failed. Please try again.");
       }
     } catch {
@@ -82,24 +84,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Sign in to your account
           </h2>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleCredentialsLogin}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-800">{error}</p>
+            <div className="rounded-md bg-red-900/30 p-4 border border-red-700">
+              <p className="text-sm font-medium text-red-200">{error}</p>
             </div>
           )}
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email address
               </label>
               <input
@@ -110,13 +112,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 border px-3 py-2 text-gray-900 placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                 Password
               </label>
               <input
@@ -127,7 +129,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 border px-3 py-2 text-gray-900 placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 placeholder="••••••••"
               />
             </div>
@@ -144,17 +146,17 @@ export default function LoginPage() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+            <div className="w-full border-t border-gray-700"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-gray-50 text-gray-500">Or</span>
+            <span className="px-2 bg-[#0a0a0f] text-gray-400">Or</span>
           </div>
         </div>
 
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-gray-900 text-sm font-medium text-gray-300 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.449-.901 4.659-2.582 6.278-.828.899-1.288 2.21-1.288 3.662 0 .384.033.773.1 1.152h-3.997c.067-.379.1-.768.1-1.152 0-1.452-.46-2.763-1.288-3.662C5.357 14.243 4.456 12.033 4.456 9.584c0-.546.05-1.081.139-1.602.027-.145.057-.29.088-.433.19-.996.617-1.923 1.23-2.71.607-.775 1.331-1.429 2.148-1.843.817-.415 1.726-.639 2.68-.639 1.316 0 2.562.366 3.63 1.01.652.41 1.244.975 1.749 1.663.47.634.854 1.336 1.13 2.095.277.76.43 1.564.43 2.392 0 .545-.05 1.08-.138 1.601zm0 0" />
@@ -162,9 +164,9 @@ export default function LoginPage() {
           Sign in with Google
         </button>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-gray-400">
           Don&apos;t have an account?{" "}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+          <a href="/register" className="font-medium text-blue-400 hover:text-blue-300">
             Sign up
           </a>
         </p>

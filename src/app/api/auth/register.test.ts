@@ -1,20 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// Mock supabase
-const mockSupabaseSelect = vi.fn()
-const mockSupabaseInsert = vi.fn()
-const mockSupabaseFrom = vi.fn()
+// Mock Supabase admin client
+const mockCreateUser = vi.fn()
+const mockFromUpdate = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-    supabase: {
-        from: mockSupabaseFrom,
-    },
-}))
-
-vi.mock('@/lib/password', () => ({
-    hashPassword: (password: string) => {
-        return `hashed_${password}`
-    },
+vi.mock('@/lib/supabase-server', () => ({
+    createAdminSupabaseClient: vi.fn(() => ({
+        auth: {
+            admin: {
+                createUser: mockCreateUser,
+            },
+        },
+        from: vi.fn(() => ({
+            update: mockFromUpdate,
+        })),
+    })),
 }))
 
 describe('Auth API - Register', () => {
@@ -67,15 +67,10 @@ describe('Auth API - Register', () => {
         expect(data.error).toBe('Password must be at least 8 characters')
     })
 
-    it('should return 409 if user already exists', async () => {
-        mockSupabaseFrom.mockReturnValue({
-            select: mockSupabaseSelect,
-        })
-
-        mockSupabaseSelect.mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { id: '123' }, error: null }),
-            }),
+    it('should return error if user already exists in Supabase Auth', async () => {
+        mockCreateUser.mockResolvedValue({
+            data: null,
+            error: { message: 'User already registered' },
         })
 
         const { POST } = await import('@/app/api/auth/register/route')
@@ -88,37 +83,18 @@ describe('Auth API - Register', () => {
         const response = await POST(request as any)
         const data = await response.json()
 
-        expect(response.status).toBe(409)
-        expect(data.error).toBe('User already exists')
+        expect(response.status).toBe(400)
+        expect(data.error).toContain('User already registered')
     })
 
     it('should create a new user successfully', async () => {
-        const mockSelectEq = vi.fn()
-        mockSelectEq.mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') }),
+        mockCreateUser.mockResolvedValue({
+            data: { user: { id: '123', email: 'new@example.com' } },
+            error: null,
         })
 
-        const mockSelectInsert = vi.fn()
-        mockSelectInsert.mockReturnValue({
-            select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: { id: '123', email: 'new@example.com', name: 'new' },
-                    error: null,
-                }),
-            }),
-        })
-
-        mockSupabaseFrom.mockImplementation((table: string) => {
-            if (table === 'users') {
-                return {
-                    select: mockSupabaseSelect,
-                    insert: mockSelectInsert,
-                }
-            }
-        })
-
-        mockSupabaseSelect.mockReturnValue({
-            eq: mockSelectEq,
+        mockFromUpdate.mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
         })
 
         const { POST } = await import('@/app/api/auth/register/route')
@@ -133,37 +109,18 @@ describe('Auth API - Register', () => {
 
         expect(response.status).toBe(201)
         expect(data.user).toBeDefined()
+        expect(data.user.email).toBe('new@example.com')
         expect(data.message).toBe('User created successfully')
     })
 
     it('should use email prefix as name if name not provided', async () => {
-        const mockSelectEq = vi.fn()
-        mockSelectEq.mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') }),
+        mockCreateUser.mockResolvedValue({
+            data: { user: { id: '123', email: 'user@example.com' } },
+            error: null,
         })
 
-        const mockSelectInsert = vi.fn()
-        const insertFn = vi.fn()
-        insertFn.mockReturnValue({
-            select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: { id: '123', email: 'user@example.com', name: 'user' },
-                    error: null,
-                }),
-            }),
-        })
-
-        mockSupabaseFrom.mockImplementation((table: string) => {
-            if (table === 'users') {
-                return {
-                    select: mockSupabaseSelect,
-                    insert: insertFn,
-                }
-            }
-        })
-
-        mockSupabaseSelect.mockReturnValue({
-            eq: mockSelectEq,
+        mockFromUpdate.mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
         })
 
         const { POST } = await import('@/app/api/auth/register/route')
@@ -178,3 +135,4 @@ describe('Auth API - Register', () => {
         expect(response.status).toBe(201)
     })
 })
+
