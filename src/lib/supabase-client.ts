@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabasePublishableKey) {
 }
 
 /**
- * Supabase client for browser/client-side operations
- * Use this in client components for auth and queries
+ * Supabase browser client for client-side operations
+ * Uses SSR to properly sync session state with server
  */
-export const supabaseClient = createClient(supabaseUrl, supabasePublishableKey)
+export const supabaseClient = createBrowserClient(supabaseUrl, supabasePublishableKey)

@@ -18,13 +18,16 @@ export default function RegisterPage() {
     const checkAuth = async () => {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
+        console.log('[RegisterPage] Auth check - session:', session?.user?.email || 'no session')
         
         if (session?.user) {
           // User is already authenticated, redirect to home
+          console.log('[RegisterPage] User already authenticated, redirecting to /')
           router.push('/')
         }
-      } catch {
+      } catch (err) {
         // Session check failed, stay on register page
+        console.log('[RegisterPage] Auth check failed:', err)
       } finally {
         setIsCheckingAuth(false)
       }
