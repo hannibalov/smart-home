@@ -1,6 +1,6 @@
 "use client";
 
-import { supabaseClient } from '@/lib/supabase-auth';
+import { supabaseClient } from '@/lib/supabase-client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/common/Header';

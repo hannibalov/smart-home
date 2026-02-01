@@ -3,14 +3,14 @@ import { expect, test, describe, vi, beforeEach } from 'vitest';
 import Home from '@/app/page';
 
 // Mock Supabase client
-vi.mock('@/lib/supabase-auth', () => ({
+vi.mock('@/lib/supabase-client', () => ({
   supabaseClient: {
     auth: {
       signOut: vi.fn(),
     },
   },
 }));
-import { supabaseClient } from '@/lib/supabase-auth';
+import { supabaseClient } from '@/lib/supabase-client';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({

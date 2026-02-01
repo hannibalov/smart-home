@@ -1,8 +1,8 @@
 import { expect, test, describe, vi, beforeEach } from 'vitest';
-import { getServerSession } from '@/lib/supabase-auth';
+import { getServerSession } from '@/lib/supabase-server';
 
 // Mock supabase server session helper
-vi.mock('@/lib/supabase-auth', () => ({
+vi.mock('@/lib/supabase-server', () => ({
     getServerSession: vi.fn(),
 }));
 
