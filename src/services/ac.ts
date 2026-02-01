@@ -1,5 +1,5 @@
-import { ACState, ACControlCommand, WiFiDevice } from '@/types';
-import { getDeviceSettings, getDeviceSettingsMap } from './ble/settings';
+import { ACState, ACControlCommand, WiFiDevice, DeviceType, DeviceConnectivity } from '@/types';
+import { getDeviceSettingsMap } from './ble/settings';
 import { updateDeviceState } from './hub';
 
 // In-memory state for WiFi devices
@@ -20,15 +20,15 @@ function ensureDevices() {
                 id,
                 name: settings.customName || 'WiFi AC',
                 ip: id,
-                type: (settings.type as any) || 'ac',
-                connectivity: (settings.connectivity as any) || 'wifi',
+                type: (settings.type as DeviceType) || 'ac',
+                connectivity: (settings.connectivity as DeviceConnectivity) || 'wifi',
                 protocol: settings.protocol || 'tuya',
                 connected: true,
                 lastSeen: Date.now(),
             };
             wifiDevices.set(id, device);
 
-            const lastState = settings.lastState as ACState;
+            const lastState = settings.lastState as ACState | undefined;
             acStates.set(id, {
                 power: lastState?.power ?? false,
                 targetTemp: lastState?.targetTemp ?? 22,

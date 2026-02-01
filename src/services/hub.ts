@@ -33,7 +33,7 @@ export async function updateDeviceState(
         // Update WiFi device state in our unified map if it's there
         const existing = state.devices.get(deviceId);
         if (existing) {
-            existing.state = { ...existing.state, ...newState } as any;
+            existing.state = { ...(existing.state as unknown as Record<string, unknown>), ...(newState as Partial<Record<string, unknown>>) } as unknown as LightState;
             state.devices.set(deviceId, existing);
         }
     }
@@ -65,9 +65,11 @@ async function syncToHardware(deviceId: string, stateUpdate: Partial<LightState 
         // Batch updates or send sequentially
         for (const [key, value] of Object.entries(stateUpdate)) {
             // Mapping state keys to command types
-            const type = key as any;
+            const type = key as keyof (LightState & ACState) | string;
             try {
-                await sendLightCommand(deviceId, { type, value: value as any });
+                const v = value as unknown;
+                const cmd = { type: String(type), value: v } as unknown as ControlCommand;
+                await sendLightCommand(deviceId, cmd);
             } catch (e) {
                 console.error(`[HUB] Failed to sync ${key} for BLE ${deviceId}:`, e);
             }
@@ -80,10 +82,10 @@ async function syncToHardware(deviceId: string, stateUpdate: Partial<LightState 
             console.log(`[HUB] Syncing WiFi hardware for ${deviceId}...`);
             for (const [key, value] of Object.entries(stateUpdate)) {
                 try {
-                    await sendACCommand(deviceId, {
-                        type: key as any,
-                        value: value as any
-                    });
+                    const type = key as keyof ACState | string;
+                    const v = value as unknown;
+                    const acCmd = { type: String(type), value: v } as unknown as ACControlCommand;
+                    await sendACCommand(deviceId, acCmd);
                 } catch (e) {
                     console.error(`[HUB] Failed to sync ${key} for WiFi ${deviceId}:`, e);
                 }

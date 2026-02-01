@@ -10,7 +10,7 @@ interface DeviceSetting {
     type?: DeviceType;
     connectivity?: DeviceConnectivity;
     protocol?: DeviceProtocol;
-    lastState?: LightState | any;
+    lastState?: LightState | unknown;
 }
 
 // Ensure the settings map survives Next.js hot-reloads
@@ -50,7 +50,7 @@ function saveSettings(deviceId: string, reason?: string) {
         if (settings) {
             console.log(`[SETTINGS] Saving ${reason ? `for ${reason} ` : ''}to DB for ${deviceId}`);
             // Fire and forget save
-            saveDeviceToDb(deviceId, settings);
+            saveDeviceToDb(deviceId, settings as unknown as Record<string, unknown>);
         }
     } catch (e) {
         console.error('[BLE] Failed to save settings:', e);
@@ -141,11 +141,11 @@ export function setDeviceSettings(deviceId: string, settings: DeviceSetting) {
 /**
  * Update the last known state for a device and persist it
  */
-export function updateDeviceLastState(deviceId: string, partialState: Partial<LightState> | any) {
+export function updateDeviceLastState(deviceId: string, partialState: Partial<LightState> | unknown) {
     const existing = getDeviceSettings(deviceId);
-    const lastState = existing.lastState || {};
+    const lastState = (existing.lastState || {}) as Record<string, unknown>;
 
-    const updatedState = { ...lastState, ...partialState };
+    const updatedState = { ...(lastState as Record<string, unknown>), ...((partialState as Record<string, unknown>) || {}) } as Record<string, unknown>;
 
     setDeviceSettings(deviceId, { lastState: updatedState });
 }

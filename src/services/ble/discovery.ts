@@ -4,7 +4,7 @@ import { state, emitEvent } from './state';
 import { getDeviceSettingsMap, getDeviceSettings } from './settings';
 import { connectDevice } from './connection';
 import { createMockDevices } from './mock';
-import type { BLEDevice, DeviceDetails } from '@/types';
+import type { BLEDevice, DeviceDetails, LightState } from '@/types';
 
 /**
  * Convert noble peripheral to our BLEDevice type
@@ -61,7 +61,7 @@ export function handleDiscover(peripheral: Peripheral): void {
             profileId: settings.profileId,
             targetChar: settings.targetChar,
             saved: !!settings.saved,
-            state: settings.lastState,
+            state: settings.lastState as LightState | undefined,
             characteristics: [],
         });
 

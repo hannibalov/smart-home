@@ -42,7 +42,7 @@ export async function proxyToRemote(request: Request): Promise<Response> {
             headers,
             // Skip body for GET/DELETE without body
             body: ['GET', 'HEAD'].includes(request.method) ? null : await request.clone().arrayBuffer(),
-            // @ts-ignore - duplex is required for streaming bodies in some environments
+            // @ts-expect-error - duplex is required for streaming bodies in some environments
             duplex: 'half'
         };
 

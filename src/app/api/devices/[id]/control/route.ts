@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { sendLightCommand, writeCharacteristic, getCommandLog, clearCommandLog } from '@/services/ble';
-import { getWiFiDevices } from '@/services/ac';
+import { writeCharacteristic, getCommandLog, clearCommandLog } from '@/services/ble';
 import { updateDeviceState } from '@/services/hub';
 import { shouldProxy, proxyToRemote } from '@/services/remoteProxy';
-import type { ControlCommand, ACControlCommand } from '@/types';
+// types not needed in this route
 
 interface RouteParams {
     params: Promise<{ id: string }>;

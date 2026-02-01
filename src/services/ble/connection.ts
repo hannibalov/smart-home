@@ -132,22 +132,23 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
             console.log(`[CONNECTION] Initial state retrieved:`, initialState);
 
             // Restore saved state if it exists and we have a last known state
-            if (settings.lastState) {
-                console.log(`[CONNECTION] Restoring saved state for ${device.name}:`, settings.lastState);
+            const lastState = settings.lastState as Partial<LightState> | undefined;
+            if (lastState) {
+                console.log(`[CONNECTION] Restoring saved state for ${device.name}:`, lastState);
 
                 // Restore power first if it was on
-                if (settings.lastState.power) {
+                if (lastState.power) {
                     await sendLightCommand(deviceId, { type: 'power', value: true });
 
                     // Restore other properties if they exist
-                    if (settings.lastState.brightness !== undefined) {
-                        await sendLightCommand(deviceId, { type: 'brightness', value: settings.lastState.brightness });
+                    if (lastState.brightness !== undefined) {
+                        await sendLightCommand(deviceId, { type: 'brightness', value: lastState.brightness });
                     }
-                    if (settings.lastState.color) {
-                        await sendLightCommand(deviceId, { type: 'color', value: settings.lastState.color });
+                    if (lastState.color) {
+                        await sendLightCommand(deviceId, { type: 'color', value: lastState.color });
                     }
-                    if (settings.lastState.colorTemperature !== undefined) {
-                        await sendLightCommand(deviceId, { type: 'colorTemperature', value: settings.lastState.colorTemperature });
+                    if (lastState.colorTemperature !== undefined) {
+                        await sendLightCommand(deviceId, { type: 'colorTemperature', value: lastState.colorTemperature });
                     }
                 } else {
                     // Just ensure it's off if it was off
@@ -157,17 +158,17 @@ export async function connectDevice(deviceId: string): Promise<DeviceDetails> {
 
             if (Object.keys(initialState).length > 0) {
                 device.state = {
-                    power: initialState.power ?? settings.lastState?.power ?? false,
-                    brightness: initialState.brightness ?? settings.lastState?.brightness ?? 100,
-                    colorTemperature: initialState.colorTemperature ?? settings.lastState?.colorTemperature ?? 50,
-                    ...settings.lastState,
+                    power: initialState.power ?? lastState?.power ?? false,
+                    brightness: initialState.brightness ?? lastState?.brightness ?? 100,
+                    colorTemperature: initialState.colorTemperature ?? lastState?.colorTemperature ?? 50,
+                    ...lastState,
                     ...initialState
                 } as LightState;
                 console.log(`[CONNECTION] Device state updated:`, device.state);
                 emitEvent('device_updated', device);
             } else if (settings.lastState) {
                 // If we couldn't read the state but we have a last known state, use that
-                device.state = { ...settings.lastState };
+                device.state = { ...(lastState || {}) } as LightState;
                 emitEvent('device_updated', device);
             }
         } catch (e) {

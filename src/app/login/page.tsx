@@ -57,7 +57,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const { error: signInError } = await supabaseClient.auth.signInWithOAuth({
+      const { data, error: signInError } = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -66,6 +66,12 @@ export default function LoginPage() {
 
       if (signInError) {
         setError("Google login failed. Please try again.");
+        return
+      }
+
+      // Supabase returns a redirect URL in `data.url`. If present, navigate there.
+      if (data?.url) {
+        window.location.href = data.url
       }
     } catch {
       setError("Google login failed. Please try again.");

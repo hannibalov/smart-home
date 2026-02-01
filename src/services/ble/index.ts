@@ -1,5 +1,6 @@
 
-import { state, emitEvent } from './state';
+import { state } from './state';
+import type { LightState } from '@/types';
 import { loadSettings, getDeviceSettingsMap, resetSettingsForTesting } from './settings';
 import { handleDiscover, startScan } from './discovery';
 import { connectDevice } from './connection';
@@ -45,7 +46,7 @@ function populateSavedDevices() {
                     customName: settings.customName,
                     profileId: settings.profileId,
                     targetChar: settings.targetChar,
-                    state: settings.lastState,
+                    state: settings.lastState as unknown as LightState | undefined,
                     characteristics: [],
                 });
             }

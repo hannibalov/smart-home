@@ -15,7 +15,7 @@ export default function ScanPage() {
   const [step, setStep] = useState<Step>('category');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  // selectedPreset kept internal during selection flow; not needed elsewhere
 
   const {
       devices,
@@ -43,7 +43,7 @@ export default function ScanPage() {
   };
 
   const handlePresetSelect = async (presetId: string) => {
-    setSelectedPreset(presetId);
+    // keep selected preset locally without storing for now
     
     const preset = presets.find(p => p.id === presetId);
     

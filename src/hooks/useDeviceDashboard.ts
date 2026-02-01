@@ -308,7 +308,7 @@ export function useDeviceDashboard() {
         return () => {
             eventSource.close();
         };
-    }, [fetchDevices, selectedDevice]);
+    }, [fetchDevices, selectedDevice, scanning]);
 
     // Initial fetch
     useEffect(() => {

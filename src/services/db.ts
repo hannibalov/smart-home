@@ -1,5 +1,5 @@
 import { getServiceSupabase } from '@/lib/supabase-admin';
-import type { DeviceType, DeviceConnectivity, DeviceProtocol, LightState } from '@/types';
+import type { DeviceType, DeviceConnectivity, DeviceProtocol } from '@/types';
 
 export interface DbDevice {
     id: string; // db uuid
@@ -11,8 +11,8 @@ export interface DbDevice {
     protocol?: DeviceProtocol;
     last_ip?: string;
     is_connected: boolean;
-    settings: any;
-    last_state: any;
+    settings: Record<string, unknown> | null;
+    last_state: unknown;
 }
 
 // Since the Pi controller acts as a central hub (likely for a single home in this context, 
@@ -32,7 +32,7 @@ async function getOrCreateDefaultHomeId(): Promise<string | null> {
     if (!supabase) return null;
 
     // Try to find a home
-    let { data: homes, error } = await supabase
+    const { data: homes, error } = await supabase
         .from('homes')
         .select('id')
         .limit(1);
@@ -64,7 +64,7 @@ async function getOrCreateDefaultHomeId(): Promise<string | null> {
 /**
  * Load all devices from DB into a map format compatible with legacy settings
  */
-export async function loadDevicesFromDb(): Promise<Record<string, any>> {
+export async function loadDevicesFromDb(): Promise<Record<string, unknown>> {
     const supabase = getServiceSupabase();
     if (!supabase) return {};
 
@@ -77,7 +77,7 @@ export async function loadDevicesFromDb(): Promise<Record<string, any>> {
         return {};
     }
 
-    const map: Record<string, any> = {};
+    const map: Record<string, unknown> = {};
 
     devices.forEach((dev: DbDevice) => {
         if (!dev.hardware_id) return;
@@ -101,7 +101,7 @@ export async function loadDevicesFromDb(): Promise<Record<string, any>> {
 /**
  * Upsert a device to the DB
  */
-export async function saveDeviceToDb(hardwareId: string, settings: any) {
+export async function saveDeviceToDb(hardwareId: string, settings: Record<string, unknown>) {
     const supabase = getServiceSupabase();
     if (!supabase) return;
 
@@ -111,7 +111,7 @@ export async function saveDeviceToDb(hardwareId: string, settings: any) {
         return;
     }
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         home_id: homeId,
         hardware_id: hardwareId,
         custom_name: settings.customName,
@@ -128,7 +128,7 @@ export async function saveDeviceToDb(hardwareId: string, settings: any) {
     };
 
     // If we know the DB ID, update explicitly, otherwise upsert on hardware_id/home_id
-    const dbId = hardwareToDbId.get(hardwareId);
+    hardwareToDbId.get(hardwareId);
 
     // We rely on the UNIQUE(home_id, hardware_id) constraint for upsert
     const { data, error } = await supabase
