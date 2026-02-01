@@ -1,12 +1,16 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { expect, test, describe, vi, beforeEach } from 'vitest';
-import { signOut } from 'next-auth/react';
 import Home from '@/app/page';
 
-// Mock next-auth/react
-vi.mock('next-auth/react', () => ({
-  signOut: vi.fn(),
+// Mock Supabase client
+vi.mock('@/lib/supabase-auth', () => ({
+  supabaseClient: {
+    auth: {
+      signOut: vi.fn(),
+    },
+  },
 }));
+import { supabaseClient } from '@/lib/supabase-auth';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -91,14 +95,14 @@ describe('Home Page / Dashboard', () => {
       expect(logoutButton).toBeDefined();
     });
 
-    test('should call signOut with login callback on logout button click', async () => {
+    test('should call supabase signOut and navigate on logout button click', async () => {
       render(<Home />);
       const logoutButton = screen.getByText('Log Out');
-      
+
       fireEvent.click(logoutButton);
 
       await waitFor(() => {
-        expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
+        expect(supabaseClient.auth.signOut).toHaveBeenCalled();
       });
     });
 

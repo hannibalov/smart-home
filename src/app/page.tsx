@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { signOut } from 'next-auth/react';
+import { supabaseClient } from '@/lib/supabase-auth';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/common/Header';
@@ -40,7 +40,11 @@ export default function Home() {
       
       <div className="absolute top-4 right-4">
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={async () => {
+            await supabaseClient.auth.signOut();
+            // After signing out, navigate to login page
+            router.push('/login');
+          }}
           className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
         >
           Log Out
