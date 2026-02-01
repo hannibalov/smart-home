@@ -260,7 +260,7 @@ export default function DeviceCard({
       </div>
 
       {/* Services */}
-      {device.services.length > 0 && (
+      {device.services && device.services.length > 0 && (
         <div className="mt-4 pt-4 border-t border-white/5">
           <p className="text-xs text-white/40 mb-2">Services</p>
           <div className="flex flex-wrap gap-1">
